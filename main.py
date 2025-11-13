@@ -1,104 +1,152 @@
-from fastapi import FastAPI, UploadFile, File, Form
+import os
+import uuid
+import datetime as dt
+from typing import List, Optional
+
+from fastapi import FastAPI, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List
-import uuid
-import os
 
-app = FastAPI()
+# ---------- Модели ----------
 
-# --- CORS: пока разрешаем всем (для разработки) ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],   # на проде лучше указать конкретный домен
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+class WorkTypeOut(BaseModel):
+  id: int
+  name: str
 
-# --- Папка для загрузок ---
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# --- Модели данных ---
-
-class WorkType(BaseModel):
-    id: int
-    name: str
 
 class ReportOut(BaseModel):
-    id: int
-    user_id: str
-    work_type_id: str
-    description: str
-    people: str
-    volume: str
-    machines: str
-    photo_url: str
+  id: int
+  user_id: str
+  work_type_id: str
+  description: str
+  people: str
+  volume: str
+  machines: str
+  created_at: str
+  photo_urls: List[str]
 
-# "База" в памяти (для старта)
-WORK_TYPES = [
-    WorkType(id=1, name="Земляные работы"),
-    WorkType(id=2, name="Бетонирование"),
-    WorkType(id=3, name="Монтаж конструкций"),
-]
 
+# ---------- Инициализация приложения ----------
+
+app = FastAPI(title="Ptobot backend")
+
+# Папка для сохранения фото
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Простое хранилище в памяти (пока без базы)
 REPORTS: List[ReportOut] = []
 
+# CORS, чтобы фронт и WebApp могли стучаться
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=["*"],          # при желании можно сузить до домена фронта
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
 
-# --- Эндпоинты ---
+# Раздача файлов по /uploads/...
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-@app.get("/work_types", response_model=List[WorkType])
-def get_work_types():
-    """
-    Возвращает список видов работ.
-    Твой фронт делает сюда fetch("/work_types")
-    """
-    return WORK_TYPES
 
+# ---------- Виды работ ----------
+
+@app.get("/work_types", response_model=List[WorkTypeOut])
+async def get_work_types():
+  """
+  Справочник видов работ.
+  Пока захардкожен. Можно потом брать из БД.
+  """
+  return [
+    WorkTypeOut(id=1, name="Земляные работы"),
+    WorkTypeOut(id=2, name="Бетонирование"),
+    WorkTypeOut(id=3, name="Монтаж конструкций"),
+  ]
+
+
+# ---------- Создание отчёта ----------
 
 @app.post("/reports", response_model=ReportOut)
 async def create_report(
-    user_id: str = Form(...),
-    work_type_id: str = Form(...),
-    description: str = Form(""),
-    people: str = Form(""),
-    volume: str = Form(""),
-    machines: str = Form(""),
-    photo: UploadFile = File(...),
+  user_id: str = Form(...),
+  work_type_id: str = Form(...),
+  description: str = Form(""),
+  people: str = Form(""),
+  volume: str = Form(""),
+  machines: str = Form(""),
+  photos: List[UploadFile] = File(...),  # несколько файлов
 ):
-    """
-    Принимает форму с отчётом и одним фото.
-    Полностью совпадает с тем, что ты собираешь в FormData на фронте.
-    """
+  """
+  Создаёт отчёт и сохраняет все приложенные фото.
+  Фронт должен слать поля FormData:
+    - user_id
+    - work_type_id
+    - description
+    - people
+    - volume
+    - machines
+    - photos (несколько файлов)
+  """
+  photo_urls: List[str] = []
 
-    # 1. сохраняем файл на диск
+  for photo in photos:
+    # расширение файла
     ext = os.path.splitext(photo.filename or "")[1] or ".jpg"
+    # уникальное имя
     filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, filename)
 
+    # сохраняем файл
+    content = await photo.read()
     with open(file_path, "wb") as f:
-        f.write(await photo.read())
+      f.write(content)
 
-    photo_url = f"/uploads/{filename}"
+    photo_urls.append(f"/uploads/{filename}")
 
-    # 2. сохраняем запись в "базу"
-    new_id = len(REPORTS) + 1
-    report = ReportOut(
-        id=new_id,
-        user_id=user_id,
-        work_type_id=work_type_id,
-        description=description,
-        people=people,
-        volume=volume,
-        machines=machines,
-        photo_url=photo_url,
-    )
-    REPORTS.append(report)
+  report_id = len(REPORTS) + 1
+  created_at = dt.datetime.utcnow().isoformat()
 
-    return report
+  report = ReportOut(
+    id=report_id,
+    user_id=user_id,
+    work_type_id=str(work_type_id),
+    description=description,
+    people=people,
+    volume=volume,
+    machines=machines,
+    created_at=created_at,
+    photo_urls=photo_urls,
+  )
+
+  REPORTS.append(report)
+  return report
 
 
-# --- отдаём загруженные файлы как статику ---
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# ---------- Получение списка отчётов (для истории/сводки) ----------
+
+@app.get("/reports", response_model=List[ReportOut])
+async def list_reports(
+  user_id: Optional[str] = Query(None),
+  work_type_id: Optional[str] = Query(None),
+):
+  """
+  Возвращает список отчётов из памяти.
+  Пока фильтрация очень простая:
+    - по user_id (если передан)
+    - по work_type_id (если передан)
+  """
+  result = REPORTS
+  if user_id is not None:
+    result = [r for r in result if r.user_id == user_id]
+  if work_type_id is not None:
+    result = [r for r in result if r.work_type_id == work_type_id]
+  return result
+
+
+# ---------- Корень ----------
+
+@app.get("/")
+async def root():
+  return {"status": "ok", "message": "Ptobot backend is running"}

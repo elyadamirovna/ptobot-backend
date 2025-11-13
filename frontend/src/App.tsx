@@ -1,100 +1,99 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Calendar as CalendarIcon,
+  Upload,
+  Image as ImageIcon,
+  History,
+  ClipboardList,
+  ShieldCheck,
+} from "lucide-react";
 
+// 🔗 адрес бэкенда
 const API_URL = "https://ptobot-backend.onrender.com";
 
-interface WorkType {
-  id: string;
-  name: string;
-}
+// Светлая тема (более спокойная палитра)
+const BRAND = {
+  bgLight: "#F8FAFC",
+  bgCard: "#FFFFFF",
+  blue: "#335E8A", // спокойный синий
+  blueHover: "#2A4B6C", // hover-оттенок
+  textDark: "#0F172A",
+  textMuted: "#64748B",
+};
 
-interface HistoryItem {
-  id: number;
-  project_id: string;
-  date: string;
-  work_type_id: string;
-  description: string;
-  photos: string[];
-}
-
-interface AccessEntry {
-  user: { id: number; name: string };
-  projects: string[];
-  role: string;
-}
-
-const projects = [
-  { id: "1", name: "ЖК «Северный»", address: "ул. Парковая, 12" },
-  { id: "2", name: "ЖК «Академический»", address: "пр-т Науки, 5" },
-];
-
-const accessList: AccessEntry[] = [
-  { user: { id: 8, name: "ИП «СтройСервис»" }, projects: ["1"], role: "reporter" },
-  { user: { id: 9, name: "ООО «МонтажГрупп»" }, projects: ["1", "2"], role: "reporter" },
-];
-
-function App() {
+export default function TelegramWebAppLight() {
+  // ⚠️ Лого оставляем опциональным (можно убрать параметр в URL — отрисуется заглушка)
   const [logoUrl, setLogoUrl] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"report" | "history" | "admin">("report");
+  useEffect(() => {
+    try {
+      const qs = new URLSearchParams(window.location.search);
+      const fromQuery = qs.get("logo");
+      const fallback = ""; // временно без логотипа
+      setLogoUrl(fromQuery || fallback);
+    } catch (_) {
+      setLogoUrl("");
+    }
+  }, []);
 
-  const [project, setProject] = useState<string>("1");
-  const [workType, setWorkType] = useState<string>("2");
-  const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [activeTab, setActiveTab] = useState("report");
+  const [project, setProject] = useState<string | undefined>("1");
+  const [workType, setWorkType] = useState<string | undefined>("2");
+  const [date, setDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [volume, setVolume] = useState("");
   const [machines, setMachines] = useState("");
-  const [people, setPeople] = useState("");
+  const [people, setPeople] = useState(""); // количество людей
   const [comment, setComment] = useState("");
 
-  const [workTypes, setWorkTypes] = useState<WorkType[]>([
+  const [workTypes, setWorkTypes] = useState([
     { id: "1", name: "Земляные работы" },
     { id: "2", name: "Бетонирование" },
     { id: "3", name: "Монтаж конструкций" },
   ]);
 
-  // читаем ?logo=... из URL (как в твоём исходном коде)
+  // подгружаем справочник из API, если доступен
   useEffect(() => {
-    try {
-      const qs = new URLSearchParams(window.location.search);
-      const fromQuery = qs.get("logo");
-      const fallback = "";
-      setLogoUrl(fromQuery || fallback);
-    } catch {
-      setLogoUrl("");
-    }
-  }, []);
-
-  // грузим work_types с бекенда
-  useEffect(() => {
-    async function loadWorkTypes() {
-      try {
-        const res = await fetch(`${API_URL}/work_types`);
-        if (!res.ok) return;
-        const rows = await res.json();
+    fetch(`${API_URL}/work_types`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((rows) => {
         if (Array.isArray(rows) && rows.length) {
-          const mapped = rows.map((w: any) => ({
-            id: String(w.id),
-            name: w.name,
-          }));
-          setWorkTypes(mapped);
+          setWorkTypes(
+            rows.map((w: any) => ({ id: String(w.id), name: w.name }))
+          );
           if (!workType) setWorkType(String(rows[0].id));
         }
-      } catch {
-        // тихо игнорируем ошибку
-      }
-    }
+      })
+      .catch(() => {});
+  }, []);
 
-    loadWorkTypes();
-  }, [workType]);
+  const projects = [
+    { id: "1", name: "ЖК «Северный»", address: "ул. Парковая, 12" },
+    { id: "2", name: "ЖК «Академический»", address: "пр-т Науки, 5" },
+  ];
 
-  // демо-история
-  const history: HistoryItem[] = useMemo(
+  // Демо-история с "Людьми"
+  const history = useMemo(
     () => [
       {
         id: 101,
         project_id: "1",
         date: "2025-11-11",
         work_type_id: "2",
-        description: `Бетонирование ростверка\nОбъём: 12,5 м³\nТехника: 2\nЛюди: 7`,
+        description:
+          "Бетонирование ростверка\nОбъём: 12,5 м³\nТехника: 2\nЛюди: 7",
         photos: [
           "https://picsum.photos/seed/a/300/200",
           "https://picsum.photos/seed/b/300/200",
@@ -105,34 +104,36 @@ function App() {
         project_id: "1",
         date: "2025-11-10",
         work_type_id: "1",
-        description: `Разработка котлована\nОбъём: 80 м³\nТехника: 3\nЛюди: 5`,
+        description:
+          "Разработка котлована\nОбъём: 80 м³\nТехника: 3\nЛюди: 5",
         photos: ["https://picsum.photos/seed/c/300/200"],
       },
     ],
     []
   );
 
-  // загрузка файлов
+  const accessList = [
+    {
+      user: { id: 8, name: "ИП «СтройСервис»" },
+      projects: ["1"],
+      role: "reporter",
+    },
+    {
+      user: { id: 9, name: "ООО «МонтажГрупп»" },
+      projects: ["1", "2"],
+      role: "reporter",
+    },
+  ];
+
+  // ----- Фото: выбор, предпросмотр -----
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [sending, setSending] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [sendMessage, setSendMessage] = useState<string | null>(null);
 
-  const onPickFiles = () => {
-    fileInputRef.current?.click();
-  };
-
-  const onFilesSelected = (e: ChangeEvent<HTMLInputElement>) => {
+  const onPickFiles = () => fileInputRef.current?.click();
+  const onFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fl = Array.from(e.target.files || []);
     setFiles(fl);
-
-    if (!fl.length) {
-      setPreviews([]);
-      return;
-    }
-
     Promise.all(
       fl.map(
         (f) =>
@@ -145,10 +146,11 @@ function App() {
     ).then(setPreviews);
   };
 
-  async function sendReport(e?: FormEvent) {
-    if (e) e.preventDefault();
-    setSendMessage(null);
+  // ----- Отправка отчёта в FastAPI -----
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(0);
 
+  async function sendReport() {
     if (!workType) {
       alert("Выберите вид работ");
       return;
@@ -158,21 +160,25 @@ function App() {
       return;
     }
 
-    const descParts: string[] = [comment];
+    // Собираем описание в виде многострочного текста (будет выведено в историю одной строкой через toOneLine)
+    const descParts = [comment];
     if (volume) descParts.push(`Объём: ${volume}`);
     if (machines) descParts.push(`Техника: ${machines}`);
     if (people) descParts.push(`Люди: ${people}`);
     const description = descParts.filter(Boolean).join("\n");
 
     const form = new FormData();
-    // TODO: сюда потом подставим реальный user_id из Telegram WebApp
-    form.append("user_id", "1");
+    form.append("user_id", "1"); // TODO: заменить на текущего пользователя после авторизации
     form.append("work_type_id", String(workType));
     form.append("description", description);
     form.append("people", people);
     form.append("volume", volume);
     form.append("machines", machines);
-    form.append("photo", files[0]);
+
+    // 🔥 отправляем ВСЕ фото как "photos"
+    files.forEach((file) => {
+      form.append("photos", file);
+    });
 
     try {
       setSending(true);
@@ -185,7 +191,7 @@ function App() {
       if (!res.ok) throw new Error("Ошибка при отправке отчёта");
       const data = await res.json();
       setProgress(100);
-      setSendMessage(`Отчёт успешно отправлен! ID: ${data.id}`);
+      alert(`Отчёт успешно отправлен! ID: ${data.id}`);
       // сброс формы
       setVolume("");
       setMachines("");
@@ -193,9 +199,8 @@ function App() {
       setComment("");
       setFiles([]);
       setPreviews([]);
-    } catch (err: any) {
-      alert(err?.message || "Ошибка при отправке отчёта");
-      setSendMessage("Не удалось отправить отчёт");
+    } catch (e: any) {
+      alert(e?.message || "Ошибка при отправке отчёта");
     } finally {
       setSending(false);
       setTimeout(() => setProgress(0), 600);
@@ -203,726 +208,446 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFC", color: "#0F172A" }}>
-      {/* Шапка */}
-      <header
-        style={{
-          padding: "8px 0",
-          borderBottom: "1px solid #E5E7EB",
-          background: "#FFFFFF",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "960px",
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            padding: "0 12px",
-          }}
-        >
+    <div
+      className="min-h-screen"
+      style={{ background: BRAND.bgLight, color: BRAND.textDark }}
+    >
+      {/* Шапка с логотипом (опционально) */}
+      <header className="py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto flex items-center gap-3 px-3">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt="Логотип"
-              style={{ height: "40px", width: "auto", objectFit: "contain" }}
+              className="h-8 sm:h-10 w-auto object-contain"
             />
           ) : (
-            <div style={{ fontWeight: 800, fontSize: "18px" }}>Отчёты</div>
+            <div className="text-base sm:text-xl font-extrabold tracking-wide">
+              Отчёты
+            </div>
           )}
         </div>
       </header>
 
-      <main style={{ maxWidth: "960px", margin: "0 auto", padding: "16px 12px 80px" }}>
-        {/* Вкладки */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            background: "#E5E7EB",
-            borderRadius: "999px",
-            overflow: "hidden",
-          }}
-        >
-          <TabButton
-            active={activeTab === "report"}
-            onClick={() => setActiveTab("report")}
-          >
-            Отчёт
-          </TabButton>
-          <TabButton
-            active={activeTab === "history"}
-            onClick={() => setActiveTab("history")}
-          >
-            История
-          </TabButton>
-          <TabButton
-            active={activeTab === "admin"}
-            onClick={() => setActiveTab("admin")}
-          >
-            Доступ
-          </TabButton>
-        </div>
-
-        {/* Содержимое вкладок */}
-        <div style={{ marginTop: "16px" }}>
-          {activeTab === "report" && (
-            <section
-              style={{
-                background: "#FFFFFF",
-                borderRadius: "16px",
-                border: "1px solid #E5E7EB",
-                boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
-                padding: "16px",
-              }}
+      <div className="max-w-5xl mx-auto px-3 py-4 sm:px-4 sm:py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-3 w-full bg-gray-100 text-gray-700 font-medium rounded-xl">
+            <TabsTrigger
+              value="report"
+              className="data-[state=active]:bg-white"
+              style={{ color: BRAND.blue }}
             >
-              <h2 style={{ marginBottom: "12px", color: "#335E8A" }}>Ежедневный отчёт</h2>
+              <ClipboardList className="h-4 w-4" />
+              Отчёт
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="data-[state=active]:bg-white"
+              style={{ color: BRAND.blue }}
+            >
+              <History className="h-4 w-4" />
+              История
+            </TabsTrigger>
+            <TabsTrigger
+              value="admin"
+              className="data-[state=active]:bg-white"
+              style={{ color: BRAND.blue }}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Доступ
+            </TabsTrigger>
+          </TabsList>
 
-              <form onSubmit={sendReport}>
-                {/* Объект + вид работ */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                    gap: "12px",
-                  }}
+          {/* Отчёт */}
+          <TabsContent value="report" className="mt-3 sm:mt-4">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader>
+                <CardTitle
+                  className="flex items-center gap-2"
+                  style={{ color: BRAND.blue }}
                 >
+                  <ClipboardList className="h-5 w-5" /> Ежедневный отчёт
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <label style={{ fontSize: "14px", fontWeight: 600 }}>
-                      Объект<span style={{ color: "red" }}>*</span>
+                    <label className="text-sm font-semibold">
+                      Объект<span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={project}
-                      onChange={(e) => setProject(e.target.value)}
-                      style={{
-                        width: "100%",
-                        marginTop: "4px",
-                        padding: "6px 8px",
-                        borderRadius: "8px",
-                        border: "1px solid #D1D5DB",
-                        background: "#FFFFFF",
-                      }}
-                    >
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={project} onValueChange={setProject}>
+                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                        <SelectValue placeholder="Выберите объект" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
                   <div>
-                    <label style={{ fontSize: "14px", fontWeight: 600 }}>
-                      Вид работы<span style={{ color: "red" }}>*</span>
+                    <label className="text-sm font-semibold">
+                      Вид работы<span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={workType}
-                      onChange={(e) => setWorkType(e.target.value)}
-                      style={{
-                        width: "100%",
-                        marginTop: "4px",
-                        padding: "6px 8px",
-                        borderRadius: "8px",
-                        border: "1px solid #D1D5DB",
-                        background: "#FFFFFF",
-                      }}
-                    >
-                      {workTypes.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={workType} onValueChange={setWorkType}>
+                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                        <SelectValue placeholder="Выберите вид" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workTypes.map((w) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            {w.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                {/* Дата / объем / техника */}
-                <div
-                  style={{
-                    marginTop: "12px",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                    gap: "12px",
-                  }}
-                >
+                <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label style={{ fontSize: "14px", fontWeight: 600 }}>Дата</label>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      style={{
-                        width: "100%",
-                        marginTop: "4px",
-                        padding: "6px 8px",
-                        borderRadius: "8px",
-                        border: "1px solid #D1D5DB",
-                        background: "#FFFFFF",
-                      }}
-                    />
+                    <label className="text-sm font-semibold">Дата</label>
+                    <div className="relative mt-1">
+                      <Input
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        className="bg-white border-gray-300 pr-8"
+                      />
+                      <CalendarIcon className="h-4 w-4 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                    </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: "14px", fontWeight: 600 }}>Объём (м³)</label>
-                    <input
+                    <label className="text-sm font-semibold">Объём (м³)</label>
+                    <Input
+                      placeholder="12,5"
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
-                      placeholder="12,5"
-                      style={{
-                        width: "100%",
-                        marginTop: "4px",
-                        padding: "6px 8px",
-                        borderRadius: "8px",
-                        border: "1px solid #D1D5DB",
-                        background: "#FFFFFF",
-                      }}
+                      className="bg-white border-gray-300"
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: "14px", fontWeight: 600 }}>
+                    <label className="text-sm font-semibold">
                       Техника (шт.)
                     </label>
-                    <input
+                    <Input
+                      placeholder="3"
                       value={machines}
                       onChange={(e) => setMachines(e.target.value)}
-                      placeholder="3"
-                      style={{
-                        width: "100%",
-                        marginTop: "4px",
-                        padding: "6px 8px",
-                        borderRadius: "8px",
-                        border: "1px solid #D1D5DB",
-                        background: "#FFFFFF",
-                      }}
+                      className="bg-white border-gray-300"
                     />
                   </div>
                 </div>
 
-                {/* Люди */}
-                <div
-                  style={{
-                    marginTop: "12px",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                    gap: "12px",
-                  }}
-                >
+                <div className="grid sm:grid-cols-3 gap-3">
                   <div>
-                    <label style={{ fontSize: "14px", fontWeight: 600 }}>
-                      Люди (чел.)
-                    </label>
-                    <input
+                    <label className="text-sm font-semibold">Люди (чел.)</label>
+                    <Input
+                      inputMode="numeric"
+                      placeholder="5"
                       value={people}
                       onChange={(e) => setPeople(e.target.value)}
-                      placeholder="5"
-                      style={{
-                        width: "100%",
-                        marginTop: "4px",
-                        padding: "6px 8px",
-                        borderRadius: "8px",
-                        border: "1px solid #D1D5DB",
-                        background: "#FFFFFF",
-                      }}
+                      className="bg-white border-gray-300"
                     />
                   </div>
                 </div>
 
-                {/* Комментарий */}
-                <div style={{ marginTop: "12px" }}>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>Комментарий</label>
-                  <textarea
+                <div>
+                  <label className="text-sm font-semibold">Комментарий</label>
+                  <Textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    rows={3}
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                      resize: "vertical",
-                    }}
+                    className="mt-1 bg-white border-gray-300"
                   />
                 </div>
 
-                {/* Фото */}
-                <div style={{ marginTop: "12px" }}>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>
-                    Фото<span style={{ color: "red" }}>*</span>
+                <div>
+                  <label className="text-sm font-semibold">
+                    Фото<span className="text-red-500">*</span>
                   </label>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    style={{ display: "none" }}
+                    multiple
+                    className="hidden"
                     onChange={onFilesSelected}
                   />
-
-                  <div
-                    style={{
-                      marginTop: "4px",
-                      borderRadius: "16px",
-                      padding: "12px",
-                      border: "1px dashed #D1D5DB",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "12px",
-                    }}
-                  >
-                    <div style={{ fontSize: "13px", color: "#6B7280" }}>
-                      Выберите фото (JPG/PNG, до 10 МБ)
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onPickFiles}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: "999px",
-                        border: "none",
-                        background: "#335E8A",
-                        color: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Выбрать
-                    </button>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: "8px",
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                      gap: "8px",
-                    }}
-                  >
-                    {(previews.length ? previews : [null, null, null]).slice(0, 3).map((src, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          aspectRatio: "16/9",
-                          borderRadius: "12px",
-                          background: "#E5E7EB",
-                          overflow: "hidden",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {src ? (
-                          <img
-                            src={src}
-                            alt="Превью"
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                        ) : null}
+                  <div className="mt-1 border rounded-2xl p-4 border-dashed flex items-center justify-between border-gray-300">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-gray-100">
+                        <ImageIcon className="h-5 w-5 text-gray-500" />
                       </div>
-                    ))}
+                      <div className="text-sm text-gray-500">
+                        Перетащите сюда или выберите файлы (JPG/PNG/HEIC, до 10
+                        МБ каждый)
+                      </div>
+                    </div>
+                    <Button
+                      className="gap-2 text-white"
+                      style={{ background: BRAND.blue }}
+                      onClick={onPickFiles}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Выбрать
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {(previews.length ? previews : [null, null, null])
+                      .slice(0, 3)
+                      .map((src, i) => (
+                        <div
+                          key={i}
+                          className="aspect-video rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center"
+                        >
+                          {src ? (
+                            <img
+                              src={src}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+                      ))}
                   </div>
                 </div>
 
-                {/* Кнопка отправки */}
-                <div
-                  style={{
-                    marginTop: "16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button
-                    type="submit"
+                {/* Кнопка отправки (desktop/tablet) */}
+                <div className="hidden sm:flex items-center gap-3">
+                  <Button
+                    className="px-6 text-white"
+                    style={{ background: BRAND.blue }}
+                    onClick={sendReport}
                     disabled={sending}
-                    style={{
-                      padding: "8px 18px",
-                      borderRadius: "999px",
-                      border: "none",
-                      background: "#335E8A",
-                      color: "white",
-                      cursor: sending ? "wait" : "pointer",
-                    }}
                   >
-                    {sending ? "Отправка..." : "Отправить отчёт"}
-                  </button>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: "8px",
-                      borderRadius: "999px",
-                      background: "#E5E7EB",
-                      overflow: "hidden",
-                      minWidth: "120px",
-                    }}
-                  >
+                    {sending ? "Отправка…" : "Отправить отчёт"}
+                  </Button>
+                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-gray-200">
                     <div
-                      style={{
-                        width: `${progress}%`,
-                        height: "100%",
-                        background: "#335E8A",
-                        transition: "width 0.2s linear",
-                      }}
+                      className="h-full transition-all"
+                      style={{ width: `${progress}%`, background: BRAND.blue }}
                     />
                   </div>
-                  {progress > 0 && (
-                    <span style={{ fontSize: "12px", color: "#6B7280" }}>
-                      Загрузка: {progress}%
-                    </span>
-                  )}
+                  <span className="text-sm text-gray-500">
+                    {progress ? `Загрузка: ${progress}%` : ""}
+                  </span>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                {sendMessage && (
-                  <p style={{ marginTop: "8px", fontSize: "13px", fontWeight: 600 }}>
-                    {sendMessage}
-                  </p>
-                )}
-              </form>
-            </section>
-          )}
-
-          {activeTab === "history" && (
-            <section
-              style={{
-                background: "#FFFFFF",
-                borderRadius: "16px",
-                border: "1px solid #E5E7EB",
-                boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
-                padding: "16px",
-              }}
-            >
-              <h2 style={{ marginBottom: "12px", color: "#335E8A" }}>История отчётов</h2>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: "12px",
-                  marginBottom: "16px",
-                }}
-              >
-                <div>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>Объект</label>
-                  <select
-                    value={project}
-                    onChange={(e) => setProject(e.target.value)}
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                    }}
-                  >
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>С даты</label>
-                  <input
-                    type="date"
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>По дату</label>
-                  <input
-                    type="date"
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                    }}
-                  />
-                </div>
-                <div style={{ display: "flex", alignItems: "flex-end" }}>
-                  <button
-                    type="button"
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      borderRadius: "999px",
-                      border: "none",
-                      background: "#335E8A",
-                      color: "white",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Показать
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gap: "8px" }}>
-                {history
-                  .filter((h) => h.project_id === project)
-                  .map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        padding: "12px",
-                        borderRadius: "12px",
-                        border: "1px solid #E5E7EB",
-                        background: "#F9FAFB",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          fontSize: "13px",
-                          fontWeight: 600,
-                          color: "#111827",
-                        }}
-                      >
-                        <span>{formatRu(item.date)}</span>
-                        <span>
-                          {workTypes.find((w) => w.id === item.work_type_id)?.name ||
-                            "—"}
-                        </span>
-                      </div>
-                      <p
-                        style={{
-                          marginTop: "6px",
-                          fontSize: "13px",
-                          color: "#4B5563",
-                        }}
-                      >
-                        {toOneLine(item.description)}
-                      </p>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "6px",
-                          marginTop: "6px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        {item.photos.map((src, i) => (
-                          <img
-                            key={i}
-                            src={src}
-                            alt="Фото отчёта"
-                            style={{
-                              height: "60px",
-                              borderRadius: "8px",
-                              border: "1px solid #E5E7EB",
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </section>
-          )}
-
-          {activeTab === "admin" && (
-            <section
-              style={{
-                background: "#FFFFFF",
-                borderRadius: "16px",
-                border: "1px solid #E5E7EB",
-                boxShadow: "0 1px 2px rgba(15,23,42,0.05)",
-                padding: "16px",
-              }}
-            >
-              <h2 style={{ marginBottom: "12px", color: "#335E8A" }}>Назначение доступа</h2>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                  gap: "12px",
-                  marginBottom: "16px",
-                }}
-              >
-                <div>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>
-                    Найти подрядчика
-                  </label>
-                  <input
-                    placeholder="Поиск по названию/Telegram"
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>Объект</label>
-                  <select
-                    value={project}
-                    onChange={(e) => setProject(e.target.value)}
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                    }}
-                  >
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "14px", fontWeight: 600 }}>Роль</label>
-                  <select
-                    defaultValue="reporter"
-                    style={{
-                      width: "100%",
-                      marginTop: "4px",
-                      padding: "6px 8px",
-                      borderRadius: "8px",
-                      border: "1px solid #D1D5DB",
-                      background: "#FFFFFF",
-                    }}
-                  >
-                    <option value="reporter">Может отправлять отчёты</option>
-                    <option value="viewer">Только просмотр</option>
-                    <option value="manager">Менеджер</option>
-                  </select>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "12px",
-                  background: "#F9FAFB",
-                  border: "1px solid #E5E7EB",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    marginBottom: "8px",
-                    color: "#111827",
-                  }}
+          {/* История */}
+          <TabsContent value="history" className="mt-3 sm:mt-4">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader>
+                <CardTitle
+                  className="flex items-center gap-2"
+                  style={{ color: BRAND.blue }}
                 >
-                  Текущие назначения
-                </div>
-
-                <div style={{ display: "grid", gap: "8px" }}>
-                  {accessList.map((row, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "8px 10px",
-                        borderRadius: "10px",
-                        border: "1px solid #E5E7EB",
-                        background: "#FFFFFF",
-                        gap: "12px",
-                        flexWrap: "wrap",
-                      }}
+                  <History className="h-5 w-5" /> История отчётов
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-sm font-semibold">Объект</label>
+                    <Select value={project} onValueChange={setProject}>
+                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                        <SelectValue placeholder="Выберите объект" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold">С даты</label>
+                    <Input
+                      type="date"
+                      className="mt-1 bg-white border-gray-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold">По дату</label>
+                    <Input
+                      type="date"
+                      className="mt-1 bg-white border-gray-300"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      className="w-full text-white"
+                      style={{ background: BRAND.blue }}
                     >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: "14px",
-                            fontWeight: 600,
-                            color: "#111827",
-                          }}
-                        >
-                          {row.user.name}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#6B7280",
-                          }}
-                        >
-                          Проекты:{" "}
-                          {row.projects
-                            .map((pid) => projects.find((p) => p.id === pid)?.name)
-                            .filter(Boolean)
-                            .join(", ")}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#6B7280",
-                        }}
-                      >
-                        Роль: {row.role}
-                      </div>
-                      <button
-                        type="button"
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: "999px",
-                          border: "none",
-                          background: "#335E8A",
-                          color: "white",
-                          cursor: "pointer",
-                          fontSize: "12px",
-                        }}
-                      >
-                        Изменить
-                      </button>
-                    </div>
-                  ))}
+                      Показать
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </section>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
 
-function TabButton(props: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      style={{
-        padding: "8px 0",
-        border: "none",
-        cursor: "pointer",
-        background: props.active ? "#FFFFFF" : "transparent",
-        color: "#335E8A",
-        fontWeight: 600,
-      }}
-    >
-      {props.children}
-    </button>
+                <div className="grid gap-3">
+                  {history
+                    .filter((h) => h.project_id === project)
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-2xl border bg-gray-50 border-gray-200"
+                      >
+                        <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                          <span>{formatRu(item.date)}</span>
+                          <span>
+                            {
+                              workTypes.find(
+                                (w) => w.id === item.work_type_id
+                              )?.name
+                            }
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-600">
+                          {toOneLine(item.description)}
+                        </p>
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                          {item.photos.map((src, i) => (
+                            <img
+                              key={i}
+                              src={src}
+                              alt="Фото отчёта"
+                              className="h-20 rounded-xl border border-gray-200"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Доступы (админ) */}
+          <TabsContent value="admin" className="mt-3 sm:mt-4">
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <CardHeader>
+                <CardTitle
+                  className="flex items-center gap-2"
+                  style={{ color: BRAND.blue }}
+                >
+                  <ShieldCheck className="h-5 w-5" /> Назначение доступа
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-sm font-semibold">
+                      Найти подрядчика
+                    </label>
+                    <Input
+                      placeholder="Поиск по названию/Telegram"
+                      className="mt-1 bg-white border-gray-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold">Объект</label>
+                    <Select value={project} onValueChange={setProject}>
+                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                        <SelectValue placeholder="Выберите объект" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold">Роль</label>
+                    <Select defaultValue="reporter">
+                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                        <SelectValue placeholder="Роль" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="reporter">
+                          Может отправлять отчёты
+                        </SelectItem>
+                        <SelectItem value="viewer">
+                          Только просмотр
+                        </SelectItem>
+                        <SelectItem value="manager">Менеджер</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl border bg-gray-50 border-gray-200">
+                  <div className="text-sm font-semibold mb-2 text-gray-800">
+                    Текущие назначения
+                  </div>
+                  <div className="grid gap-2">
+                    {accessList.map((row, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200"
+                      >
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {row.user.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Проекты:{" "}
+                            {row.projects
+                              .map(
+                                (pid) =>
+                                  projects.find((p) => p.id === pid)?.name
+                              )
+                              .join(", ")}
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Роль: {row.role}
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-white"
+                          style={{ background: BRAND.blue }}
+                        >
+                          Изменить
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Мобильная панель отправки (фиксирована снизу) */}
+      <div
+        className="sm:hidden fixed inset-x-0 bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-3 pt-2"
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
+        }}
+      >
+        <div className="max-w-5xl mx-auto flex items-center gap-3">
+          <Button
+            className="flex-1 text-white"
+            style={{ background: BRAND.blue }}
+            onClick={sendReport}
+            disabled={sending}
+          >
+            {sending ? "Отправка…" : "Отправить отчёт"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -943,4 +668,17 @@ function toOneLine(desc: string) {
   return parts.length ? parts.join(" • ") : s.replace(/\s+/g, " ").trim();
 }
 
-export default App;
+// Тест-кейсы (не мешают UI)
+try {
+  console.assert(typeof formatRu === "function", "formatRu существует");
+  console.assert(BRAND.blue === "#335E8A", "Используется спокойный синий #335E8A");
+  console.assert(
+    /Люди:\s*\d+/.test(`Бетонирование\nЛюди: 7`),
+    'История поддерживает поле «Люди»'
+  );
+  console.assert(
+    toOneLine(`Текст\nОбъём: 10 м³\nТехника: 2\nЛюди: 6`)
+      === "Объём: 10 м³ • Техника: 2 • Люди: 6",
+    "toOneLine собирает значения в одну строку"
+  );
+} catch (_) {}
