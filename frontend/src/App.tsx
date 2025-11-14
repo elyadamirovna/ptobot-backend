@@ -20,29 +20,32 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import rbkLogo from "./assets/rbk-logo.png"; // <--- сюда положи свой логотип
+
 // 🔗 адрес бэкенда
 const API_URL = "https://ptobot-backend.onrender.com";
 
-// Светлая тема (более спокойная палитра)
+// Тёмная стеклянная тема + фирменный синий
 const BRAND = {
-  bgLight: "#F8FAFC",
-  bgCard: "#FFFFFF",
-  blue: "#335E8A", // спокойный синий
-  blueHover: "#2A4B6C", // hover-оттенок
-  textDark: "#0F172A",
-  textMuted: "#64748B",
+  accent: "#0043A4",
+  accentSoft: "rgba(0, 67, 164, 0.85)",
+  accentGlow: "rgba(0, 67, 164, 0.55)",
+  textPrimary: "#F9FAFB",
+  textMuted: "#9CA3AF",
+  panel: "rgba(15, 23, 42, 0.94)", // основной блок
+  panelSoft: "rgba(15, 23, 42, 0.82)", // поля
+  borderSoft: "rgba(148, 163, 184, 0.28)",
 };
 
-export default function TelegramWebAppLight() {
-  // ⚠️ Лого оставляем опциональным (можно убрать параметр в URL — отрисуется заглушка)
+export default function TelegramWebAppDarkGlass() {
+  // логотип из URL оставлю на будущее, но приоритизируем фирменный
   const [logoUrl, setLogoUrl] = useState<string>("");
   useEffect(() => {
     try {
       const qs = new URLSearchParams(window.location.search);
       const fromQuery = qs.get("logo");
-      const fallback = ""; // временно без логотипа
-      setLogoUrl(fromQuery || fallback);
-    } catch (_) {
+      setLogoUrl(fromQuery || "");
+    } catch {
       setLogoUrl("");
     }
   }, []);
@@ -160,7 +163,6 @@ export default function TelegramWebAppLight() {
       return;
     }
 
-    // Собираем описание в виде многострочного текста (будет выведено в историю одной строкой через toOneLine)
     const descParts = [comment];
     if (volume) descParts.push(`Объём: ${volume}`);
     if (machines) descParts.push(`Техника: ${machines}`);
@@ -168,14 +170,13 @@ export default function TelegramWebAppLight() {
     const description = descParts.filter(Boolean).join("\n");
 
     const form = new FormData();
-    form.append("user_id", "1"); // TODO: заменить на текущего пользователя после авторизации
+    form.append("user_id", "1");
     form.append("work_type_id", String(workType));
     form.append("description", description);
     form.append("people", people);
     form.append("volume", volume);
     form.append("machines", machines);
 
-    // 🔥 отправляем ВСЕ фото как "photos"
     files.forEach((file) => {
       form.append("photos", file);
     });
@@ -192,7 +193,6 @@ export default function TelegramWebAppLight() {
       const data = await res.json();
       setProgress(100);
       alert(`Отчёт успешно отправлен! ID: ${data.id}`);
-      // сброс формы
       setVolume("");
       setMachines("");
       setPeople("");
@@ -209,77 +209,122 @@ export default function TelegramWebAppLight() {
 
   return (
     <div
-      className="min-h-screen"
-      style={{ background: BRAND.bgLight, color: BRAND.textDark }}
+      className="min-h-screen w-full text-sm sm:text-base"
+      style={{
+        color: BRAND.textPrimary,
+        background:
+          "radial-gradient(circle at top, #020617 0, #020617 40%, #000000 100%)",
+      }}
     >
-      {/* Шапка с логотипом (опционально) */}
-      <header className="py-3 border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto flex items-center gap-3 px-3">
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt="Логотип"
-              className="h-8 sm:h-10 w-auto object-contain"
-            />
-          ) : (
-            <div className="text-base sm:text-xl font-extrabold tracking-wide">
-              Отчёты
+      {/* Шапка с логотипом */}
+      <header className="py-3 sm:py-4 border-b border-slate-800/70 bg-black/20 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3 px-4">
+          <div className="flex items-center gap-3">
+            {/* приоритет — фирменный логотип, резерв — текст */}
+            {rbkLogo ? (
+              <div className="h-8 sm:h-9 flex items-center">
+                <img
+                  src={logoUrl || rbkLogo}
+                  alt="РБК СтройИнвест"
+                  className="h-full w-auto object-contain"
+                />
+              </div>
+            ) : (
+              <div className="text-lg sm:text-xl font-semibold tracking-wide">
+                РБК СтройИнвест
+              </div>
+            )}
+            <span className="hidden sm:inline text-xs sm:text-sm text-slate-400">
+              Ежедневные отчёты по стройплощадкам
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-900 flex items-center justify-center text-xs text-slate-100 shadow-lg shadow-black/40">
+              ТГ
             </div>
-          )}
+          </div>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-3 py-4 sm:px-4 sm:py-6">
+      {/* Основная зона */}
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-3 w-full bg-gray-100 text-gray-700 font-medium rounded-xl">
-            <TabsTrigger
-              value="report"
-              className="data-[state=active]:bg-white"
-              style={{ color: BRAND.blue }}
-            >
-              <ClipboardList className="h-4 w-4" />
-              Отчёт
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="data-[state=active]:bg-white"
-              style={{ color: BRAND.blue }}
-            >
-              <History className="h-4 w-4" />
-              История
-            </TabsTrigger>
-            <TabsTrigger
-              value="admin"
-              className="data-[state=active]:bg-white"
-              style={{ color: BRAND.blue }}
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Доступ
-            </TabsTrigger>
+          {/* Вкладки сверху — стеклянные пилюли */}
+          <TabsList className="w-full flex bg-black/10 backdrop-blur-xl rounded-full p-1 border border-slate-700/40 shadow-[0_18px_45px_rgba(0,0,0,0.65)] mb-4 sm:mb-5">
+            {[
+              { value: "report", label: "Отчёт", icon: ClipboardList },
+              { value: "history", label: "История", icon: History },
+              { value: "admin", label: "Доступ", icon: ShieldCheck },
+            ].map(({ value, label, icon: Icon }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="flex-1 rounded-full data-[state=active]:shadow-[0_10px_35px_rgba(0,67,164,0.55)] data-[state=active]:text-slate-50 data-[state=inactive]:text-slate-300/70 text-xs sm:text-sm transition-all"
+                style={{
+                  background:
+                    activeTab === value
+                      ? `linear-gradient(135deg, ${BRAND.accentSoft}, #0A6CFF)`
+                      : "transparent",
+                  border:
+                    activeTab === value
+                      ? "1px solid rgba(191, 219, 254, 0.4)"
+                      : "1px solid transparent",
+                }}
+              >
+                <span className="flex items-center justify-center gap-2 py-1.5 sm:py-2">
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          {/* Отчёт */}
-          <TabsContent value="report" className="mt-3 sm:mt-4">
-            <Card className="shadow-sm border border-gray-200 bg-white">
-              <CardHeader>
-                <CardTitle
-                  className="flex items-center gap-2"
-                  style={{ color: BRAND.blue }}
-                >
-                  <ClipboardList className="h-5 w-5" /> Ежедневный отчёт
+          {/* --------- Вкладка ОТЧЁТ --------- */}
+          <TabsContent value="report" className="mt-0">
+            <Card
+              className="border shadow-2xl"
+              style={{
+                background: BRAND.panel,
+                borderColor: BRAND.borderSoft,
+                boxShadow:
+                  "0 20px 60px rgba(0,0,0,0.75), 0 0 0 1px rgba(15,23,42,0.9)",
+                backdropFilter: "blur(28px)",
+              }}
+            >
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5 text-slate-100" />
+                      <span className="text-lg sm:text-xl font-semibold">
+                        Ежедневный отчёт
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-400">
+                      {formatRu(date)}
+                    </p>
+                  </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid sm:grid-cols-2 gap-3">
+
+              <CardContent className="space-y-4 sm:space-y-5 pb-5 sm:pb-6">
+                <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
+                  {/* Объект */}
                   <div>
-                    <label className="text-sm font-semibold">
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
                       Объект<span className="text-red-500">*</span>
                     </label>
                     <Select value={project} onValueChange={setProject}>
-                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                      <SelectTrigger
+                        className="mt-1 bg-black/20 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
+                        style={{
+                          backdropFilter: "blur(22px)",
+                        }}
+                      >
                         <SelectValue placeholder="Выберите объект" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-slate-50">
                         {projects.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
@@ -288,15 +333,22 @@ export default function TelegramWebAppLight() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Вид работ */}
                   <div>
-                    <label className="text-sm font-semibold">
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
                       Вид работы<span className="text-red-500">*</span>
                     </label>
                     <Select value={workType} onValueChange={setWorkType}>
-                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                      <SelectTrigger
+                        className="mt-1 bg-black/20 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
+                        style={{
+                          backdropFilter: "blur(22px)",
+                        }}
+                      >
                         <SelectValue placeholder="Выберите вид" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-slate-50">
                         {workTypes.map((w) => (
                           <SelectItem key={w.id} value={w.id}>
                             {w.name}
@@ -307,65 +359,83 @@ export default function TelegramWebAppLight() {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-3 gap-3">
+                {/* Дата / объём / техника */}
+                <div className="grid sm:grid-cols-3 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-sm font-semibold">Дата</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      Дата
+                    </label>
                     <div className="relative mt-1">
                       <Input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="bg-white border-gray-300 pr-8"
+                        className="bg-black/10 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm pr-9"
+                        style={{ backdropFilter: "blur(18px)" }}
                       />
-                      <CalendarIcon className="h-4 w-4 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <CalendarIcon className="h-4 w-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-500" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-semibold">Объём (м³)</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      Объём (м³)
+                    </label>
                     <Input
-                      placeholder="12,5"
+                      placeholder="25"
                       value={volume}
                       onChange={(e) => setVolume(e.target.value)}
-                      className="bg-white border-gray-300"
+                      className="mt-1 bg-black/10 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
+                      style={{ backdropFilter: "blur(18px)" }}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold">
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
                       Техника (шт.)
                     </label>
                     <Input
                       placeholder="3"
                       value={machines}
                       onChange={(e) => setMachines(e.target.value)}
-                      className="bg-white border-gray-300"
+                      className="mt-1 bg-black/10 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
+                      style={{ backdropFilter: "blur(18px)" }}
                     />
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-3 gap-3">
+                {/* Люди */}
+                <div className="grid sm:grid-cols-3 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-sm font-semibold">Люди (чел.)</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      Люди (чел.)
+                    </label>
                     <Input
                       inputMode="numeric"
                       placeholder="5"
                       value={people}
                       onChange={(e) => setPeople(e.target.value)}
-                      className="bg-white border-gray-300"
+                      className="mt-1 bg-black/10 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
+                      style={{ backdropFilter: "blur(18px)" }}
                     />
                   </div>
                 </div>
 
+                {/* Комментарий */}
                 <div>
-                  <label className="text-sm font-semibold">Комментарий</label>
+                  <label className="text-xs sm:text-sm font-medium text-slate-200">
+                    Комментарий
+                  </label>
                   <Textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    className="mt-1 bg-white border-gray-300"
+                    className="mt-1 bg-black/10 border-slate-700/70 text-slate-100 text-sm min-h-[80px]"
+                    style={{ backdropFilter: "blur(18px)" }}
+                    placeholder="Кратко опиши, что сделано за смену…"
                   />
                 </div>
 
+                {/* Фото */}
                 <div>
-                  <label className="text-sm font-semibold">
+                  <label className="text-xs sm:text-sm font-medium text-slate-200">
                     Фото<span className="text-red-500">*</span>
                   </label>
                   <input
@@ -376,61 +446,85 @@ export default function TelegramWebAppLight() {
                     className="hidden"
                     onChange={onFilesSelected}
                   />
-                  <div className="mt-1 border rounded-2xl p-4 border-dashed flex items-center justify-between border-gray-300">
+                  <div
+                    className="mt-1 rounded-2xl border border-slate-700/70 bg-gradient-to-br from-slate-900/80 via-slate-900/60 to-slate-900/30 px-4 py-3 sm:py-4 flex items-center justify-between gap-3"
+                    style={{ backdropFilter: "blur(26px)" }}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gray-100">
-                        <ImageIcon className="h-5 w-5 text-gray-500" />
+                      <div className="p-2.5 rounded-2xl bg-black/40 border border-slate-700/80">
+                        <ImageIcon className="h-5 w-5 text-slate-200" />
                       </div>
-                      <div className="text-sm text-gray-500">
-                        Перетащите сюда или выберите файлы (JPG/PNG/HEIC, до 10
-                        МБ каждый)
+                      <div>
+                        <div className="text-xs sm:text-sm text-slate-100">
+                          Выберите фото
+                        </div>
+                        <div className="text-[11px] sm:text-xs text-slate-400">
+                          JPG/PNG/HEIC, до 10 МБ за файл
+                        </div>
                       </div>
                     </div>
                     <Button
-                      className="gap-2 text-white"
-                      style={{ background: BRAND.blue }}
+                      className="gap-2 text-white text-xs sm:text-sm px-4 sm:px-5 py-2 rounded-full shadow-[0_12px_35px_rgba(0,67,164,0.7)]"
+                      style={{
+                        background: `linear-gradient(135deg, ${BRAND.accentSoft}, #0A6CFF)`,
+                        border: "1px solid rgba(191,219,254,0.55)",
+                      }}
                       onClick={onPickFiles}
                     >
                       <Upload className="h-4 w-4" />
                       Выбрать
                     </Button>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
+
+                  {/* Превью */}
+                  <div className="grid grid-cols-3 gap-2 mt-3">
                     {(previews.length ? previews : [null, null, null])
                       .slice(0, 3)
                       .map((src, i) => (
                         <div
                           key={i}
-                          className="aspect-video rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center"
+                          className="aspect-video rounded-2xl bg-black/40 border border-slate-800/80 overflow-hidden flex items-center justify-center"
+                          style={{ backdropFilter: "blur(18px)" }}
                         >
                           {src ? (
                             <img
                               src={src}
                               className="w-full h-full object-cover"
                             />
-                          ) : null}
+                          ) : (
+                            <div className="text-[11px] text-slate-500">
+                              Фото
+                            </div>
+                          )}
                         </div>
                       ))}
                   </div>
                 </div>
 
                 {/* Кнопка отправки (desktop/tablet) */}
-                <div className="hidden sm:flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-4 pt-2">
                   <Button
-                    className="px-6 text-white"
-                    style={{ background: BRAND.blue }}
+                    className="px-7 text-white rounded-full text-sm h-11 shadow-[0_18px_40px_rgba(0,67,164,0.85)]"
+                    style={{
+                      background: `linear-gradient(135deg, ${BRAND.accentSoft}, #0A6CFF)`,
+                      border: "1px solid rgba(191,219,254,0.6)",
+                    }}
                     onClick={sendReport}
                     disabled={sending}
                   >
                     {sending ? "Отправка…" : "Отправить отчёт"}
                   </Button>
-                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-gray-200">
+                  <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-slate-800/80">
                     <div
                       className="h-full transition-all"
-                      style={{ width: `${progress}%`, background: BRAND.blue }}
+                      style={{
+                        width: `${progress}%`,
+                        background:
+                          "linear-gradient(90deg, rgba(191,219,254,0.8), #0A6CFF)",
+                      }}
                     />
                   </div>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-xs text-slate-400 min-w-[80px] text-right">
                     {progress ? `Загрузка: ${progress}%` : ""}
                   </span>
                 </div>
@@ -438,26 +532,37 @@ export default function TelegramWebAppLight() {
             </Card>
           </TabsContent>
 
-          {/* История */}
-          <TabsContent value="history" className="mt-3 sm:mt-4">
-            <Card className="shadow-sm border border-gray-200 bg-white">
-              <CardHeader>
-                <CardTitle
-                  className="flex items-center gap-2"
-                  style={{ color: BRAND.blue }}
-                >
-                  <History className="h-5 w-5" /> История отчётов
+          {/* --------- Вкладка ИСТОРИЯ --------- */}
+          <TabsContent value="history" className="mt-0">
+            <Card
+              className="border shadow-2xl"
+              style={{
+                background: BRAND.panel,
+                borderColor: BRAND.borderSoft,
+                boxShadow:
+                  "0 20px 60px rgba(0,0,0,0.75), 0 0 0 1px rgba(15,23,42,0.9)",
+                backdropFilter: "blur(28px)",
+              }}
+            >
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5 text-slate-100" />
+                  <span className="text-lg sm:text-xl font-semibold">
+                    История отчётов
+                  </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="text-sm font-semibold">Объект</label>
+              <CardContent className="space-y-4 sm:space-y-5 pb-5 sm:pb-6">
+                <div className="grid sm:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      Объект
+                    </label>
                     <Select value={project} onValueChange={setProject}>
-                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                      <SelectTrigger className="mt-1 bg-black/15 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm">
                         <SelectValue placeholder="Выберите объект" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-slate-50">
                         {projects.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
@@ -467,40 +572,37 @@ export default function TelegramWebAppLight() {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-semibold">С даты</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      С даты
+                    </label>
                     <Input
                       type="date"
-                      className="mt-1 bg-white border-gray-300"
+                      className="mt-1 bg-black/15 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold">По дату</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      По дату
+                    </label>
                     <Input
                       type="date"
-                      className="mt-1 bg-white border-gray-300"
+                      className="mt-1 bg-black/15 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
                     />
-                  </div>
-                  <div className="flex items-end">
-                    <Button
-                      className="w-full text-white"
-                      style={{ background: BRAND.blue }}
-                    >
-                      Показать
-                    </Button>
                   </div>
                 </div>
 
-                <div className="grid gap-3">
+                <div className="grid gap-3 sm:gap-4">
                   {history
                     .filter((h) => h.project_id === project)
                     .map((item) => (
                       <div
                         key={item.id}
-                        className="p-4 rounded-2xl border bg-gray-50 border-gray-200"
+                        className="p-4 rounded-2xl border border-slate-700/80 bg-black/25 flex flex-col gap-2 sm:gap-3"
+                        style={{ backdropFilter: "blur(20px)" }}
                       >
-                        <div className="flex items-center justify-between text-sm font-semibold text-gray-800">
+                        <div className="flex items-center justify-between gap-3 text-xs sm:text-sm font-medium text-slate-100">
                           <span>{formatRu(item.date)}</span>
-                          <span>
+                          <span className="text-slate-300">
                             {
                               workTypes.find(
                                 (w) => w.id === item.work_type_id
@@ -508,16 +610,16 @@ export default function TelegramWebAppLight() {
                             }
                           </span>
                         </div>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="text-xs sm:text-sm text-slate-300">
                           {toOneLine(item.description)}
                         </p>
-                        <div className="flex gap-2 mt-2 flex-wrap">
+                        <div className="flex gap-2 mt-1 flex-wrap">
                           {item.photos.map((src, i) => (
                             <img
                               key={i}
                               src={src}
                               alt="Фото отчёта"
-                              className="h-20 rounded-xl border border-gray-200"
+                              className="h-16 sm:h-20 rounded-xl border border-slate-700/70 object-cover"
                             />
                           ))}
                         </div>
@@ -528,35 +630,46 @@ export default function TelegramWebAppLight() {
             </Card>
           </TabsContent>
 
-          {/* Доступы (админ) */}
-          <TabsContent value="admin" className="mt-3 sm:mt-4">
-            <Card className="shadow-sm border border-gray-200 bg-white">
-              <CardHeader>
-                <CardTitle
-                  className="flex items-center gap-2"
-                  style={{ color: BRAND.blue }}
-                >
-                  <ShieldCheck className="h-5 w-5" /> Назначение доступа
+          {/* --------- Вкладка ДОСТУП --------- */}
+          <TabsContent value="admin" className="mt-0">
+            <Card
+              className="border shadow-2xl"
+              style={{
+                background: BRAND.panel,
+                borderColor: BRAND.borderSoft,
+                boxShadow:
+                  "0 20px 60px rgba(0,0,0,0.75), 0 0 0 1px rgba(15,23,42,0.9)",
+                backdropFilter: "blur(28px)",
+              }}
+            >
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-slate-100" />
+                  <span className="text-lg sm:text-xl font-semibold">
+                    Назначение доступа
+                  </span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-sm font-semibold">
+              <CardContent className="space-y-4 sm:space-y-5 pb-5 sm:pb-6">
+                <div className="grid sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="sm:col-span-1">
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
                       Найти подрядчика
                     </label>
                     <Input
-                      placeholder="Поиск по названию/Telegram"
-                      className="mt-1 bg-white border-gray-300"
+                      placeholder="Поиск по названию / Telegram"
+                      className="mt-1 bg-black/15 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-semibold">Объект</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      Объект
+                    </label>
                     <Select value={project} onValueChange={setProject}>
-                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                      <SelectTrigger className="mt-1 bg-black/15 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm">
                         <SelectValue placeholder="Выберите объект" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-slate-50">
                         {projects.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
                             {p.name}
@@ -566,12 +679,14 @@ export default function TelegramWebAppLight() {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-sm font-semibold">Роль</label>
+                    <label className="text-xs sm:text-sm font-medium text-slate-200">
+                      Роль
+                    </label>
                     <Select defaultValue="reporter">
-                      <SelectTrigger className="mt-1 bg-white border-gray-300">
+                      <SelectTrigger className="mt-1 bg-black/15 border-slate-700/70 text-slate-100 h-10 sm:h-11 text-sm">
                         <SelectValue placeholder="Роль" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-slate-50">
                         <SelectItem value="reporter">
                           Может отправлять отчёты
                         </SelectItem>
@@ -584,21 +699,24 @@ export default function TelegramWebAppLight() {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl border bg-gray-50 border-gray-200">
-                  <div className="text-sm font-semibold mb-2 text-gray-800">
+                <div
+                  className="p-4 rounded-2xl border border-slate-700/80 bg-black/25"
+                  style={{ backdropFilter: "blur(18px)" }}
+                >
+                  <div className="text-xs sm:text-sm font-medium mb-2 text-slate-200">
                     Текущие назначения
                   </div>
                   <div className="grid gap-2">
                     {accessList.map((row, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200"
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-700/80"
                       >
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-slate-50 text-xs sm:text-sm">
                             {row.user.name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-[11px] sm:text-xs text-slate-400">
                             Проекты:{" "}
                             {row.projects
                               .map(
@@ -608,14 +726,17 @@ export default function TelegramWebAppLight() {
                               .join(", ")}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-[11px] sm:text-xs text-slate-400">
                           Роль: {row.role}
                         </div>
                         <Button
                           variant="secondary"
                           size="sm"
-                          className="text-white"
-                          style={{ background: BRAND.blue }}
+                          className="rounded-full px-4 text-[11px] sm:text-xs text-slate-50"
+                          style={{
+                            background: `linear-gradient(135deg, ${BRAND.accentSoft}, #0A6CFF)`,
+                            border: "1px solid rgba(191,219,254,0.6)",
+                          }}
                         >
                           Изменить
                         </Button>
@@ -631,15 +752,20 @@ export default function TelegramWebAppLight() {
 
       {/* Мобильная панель отправки (фиксирована снизу) */}
       <div
-        className="sm:hidden fixed inset-x-0 bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-3 pt-2"
+        className="sm:hidden fixed inset-x-0 bottom-0 border-t border-slate-800/80 px-3 pt-2"
         style={{
+          background: "rgba(0,0,0,0.85)",
+          backdropFilter: "blur(22px)",
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
         }}
       >
         <div className="max-w-5xl mx-auto flex items-center gap-3">
           <Button
-            className="flex-1 text-white"
-            style={{ background: BRAND.blue }}
+            className="flex-1 text-white rounded-full text-sm h-11 shadow-[0_18px_40px_rgba(0,67,164,0.85)]"
+            style={{
+              background: `linear-gradient(135deg, ${BRAND.accentSoft}, #0A6CFF)`,
+              border: "1px solid rgba(191,219,254,0.6)",
+            }}
             onClick={sendReport}
             disabled={sending}
           >
@@ -668,17 +794,12 @@ function toOneLine(desc: string) {
   return parts.length ? parts.join(" • ") : s.replace(/\s+/g, " ").trim();
 }
 
-// Тест-кейсы (не мешают UI)
+// Небольшие “самопроверки”
 try {
   console.assert(typeof formatRu === "function", "formatRu существует");
-  console.assert(BRAND.blue === "#335E8A", "Используется спокойный синий #335E8A");
   console.assert(
-    /Люди:\s*\d+/.test(`Бетонирование\nЛюди: 7`),
-    'История поддерживает поле «Люди»'
-  );
-  console.assert(
-    toOneLine(`Текст\nОбъём: 10 м³\nТехника: 2\nЛюди: 6`)
-      === "Объём: 10 м³ • Техника: 2 • Люди: 6",
+    toOneLine(`Текст\nОбъём: 10 м³\nТехника: 2\nЛюди: 6`) ===
+      "Объём: 10 м³ • Техника: 2 • Люди: 6",
     "toOneLine собирает значения в одну строку"
   );
-} catch (_) {}
+} catch {}
