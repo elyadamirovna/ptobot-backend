@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  @apply bg-slate-50 text-slate-900;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -59,6 +65,7 @@
   }
 }
 
+
 @layer base {
   * {
     @apply border-border;
@@ -72,9 +79,9 @@
       radial-gradient(circle at 20% 20%, rgb(59 130 246 / 0.28), transparent 55%),
       radial-gradient(circle at 80% 0%, rgb(165 243 252 / 0.22), transparent 45%),
       radial-gradient(circle at 50% 80%, rgb(37 99 235 / 0.24), transparent 50%);
-    overscroll-behavior-x: none;
-    overscroll-behavior-y: none;
-    touch-action: manipulation;
-    min-height: 100vh;
+    overscroll-behavior: none;
+      radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.28), transparent 55%),
+      radial-gradient(circle at 80% 0%, rgba(165, 243, 252, 0.22), transparent 45%),
+      radial-gradient(circle at 50% 80%, rgba(37, 99, 235, 0.24), transparent 50%);
   }
 }
