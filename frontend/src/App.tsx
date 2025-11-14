@@ -28,6 +28,41 @@ import {
 const API_URL = "https://ptobot-backend.onrender.com";
 
 type WorkType = { id: string; name: string };
+type WorkTypeResponse = { id: string | number; name: string };
+
+type TelegramWebApp = {
+  ready: () => void;
+  expand?: () => void;
+  close: () => void;
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
+};
+
+type TelegramWindow = {
+  WebApp?: TelegramWebApp;
+};
+
+declare global {
+  interface Window {
+    Telegram?: TelegramWindow;
+  }
+}
+
+type HistoryRow = {
+  id: number;
+  project_id: string;
+  date: string;
+  work_type_id: string;
+  description: string;
+  photos: string[];
+};
+
+type AccessRow = {
+  user: { id: number; name: string };
+  projects: string[];
+  role: string;
+};
+
 
 type HistoryRow = {
   id: number;
@@ -46,6 +81,7 @@ type AccessRow = {
 
 export default function TelegramWebAppGlassPure() {
   const [logoUrl, setLogoUrl] = useState<string>("");
+  const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);
 
   useEffect(() => {
     try {
@@ -74,11 +110,25 @@ export default function TelegramWebAppGlassPure() {
   ]);
 
   useEffect(() => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg) {
+      setWebApp(tg);
+      tg.ready();
+      tg.expand?.();
+      tg.disableVerticalSwipes?.();
+      return () => {
+        tg.enableVerticalSwipes?.();
+      };
+    }
+    return undefined;
+  }, []);
+
+  useEffect(() => {
     fetch(`${API_URL}/work_types`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((rows) => {
         if (Array.isArray(rows) && rows.length) {
-          const mapped: WorkType[] = rows.map((item: any) => ({
+          const mapped: WorkType[] = rows.map((item: WorkTypeResponse) => ({
             id: String(item.id),
             name: item.name,
           }));
@@ -162,6 +212,16 @@ export default function TelegramWebAppGlassPure() {
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  const handleCloseApp = () => {
+    if (webApp) {
+      webApp.close();
+      return;
+    }
+    if (window.history.length > 1) {
+      window.history.back();
+    }
+  };
+
   async function sendReport() {
     if (!workType) {
       alert("Выберите вид работ");
@@ -205,8 +265,9 @@ export default function TelegramWebAppGlassPure() {
       setComment("");
       setFiles([]);
       setPreviews([]);
-    } catch (error: any) {
-      alert(error?.message || "Ошибка при отправке отчёта");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Ошибка при отправке отчёта";
+      alert(message);
     } finally {
       setSending(false);
       setTimeout(() => setProgress(0), 600);
@@ -214,39 +275,59 @@ export default function TelegramWebAppGlassPure() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05122D] px-4 py-10 text-white">
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05122D] px-4 py-10 text-white"
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 40px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 40px)",
+      }}
+    >
       <div className="pointer-events-none absolute -left-24 -top-32 h-72 w-72 rounded-full bg-sky-500/40 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-0 right-[-120px] h-[420px] w-[420px] rounded-full bg-indigo-600/40 blur-[160px]" />
       <div className="pointer-events-none absolute inset-x-1/2 top-[40%] h-64 w-64 -translate-x-1/2 rounded-full bg-cyan-400/30 blur-[120px]" />
 
       <div className="relative z-10 w-full max-w-[440px]">
-        <div className="relative overflow-hidden rounded-[44px] border border-white/25 bg-white/10 px-6 pb-8 pt-7 shadow-[0_35px_80px_rgba(6,24,74,0.6)] backdrop-blur-[32px]">
+        <div className="relative overflow-hidden rounded-[44px] border border-white/25 bg-white/10 px-6 pb-8 pt-7 shadow-[0_35px_80px_rgb(6_24_74_/_0.6)] backdrop-blur-[32px]">
           <div className="absolute inset-x-10 -top-32 h-48 rounded-full bg-white/10 blur-[120px]" />
           <div className="absolute inset-0 rounded-[44px] border border-white/10" />
 
           <div className="relative">
-            <header className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {logoUrl ? (
-                  <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_12px_32px_rgba(59,130,246,0.4)]">
-                    <img src={logoUrl} alt="Логотип" className="h-full w-full object-contain" />
-                  </div>
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-3xl bg-white/85 text-sm font-semibold text-sky-800 shadow-[0_12px_32px_rgba(3,144,255,0.7)]">
-                    РБК
-                  </div>
-                )}
-                <div className="leading-tight">
-                  <div className="text-[11px] uppercase tracking-[0.24em] text-white/70">
-                    Стройинвест
-                  </div>
-                  <div className="text-xs font-medium text-white/85">
-                    Ежедневные отчёты по объектам
-                  </div>
+            <header className="mb-6 space-y-4">
+              <div className="flex items-center justify-between text-[13px]">
+                <button
+                  type="button"
+                  onClick={handleCloseApp}
+                  className="rounded-full border border-white/30 bg-white/80 px-4 py-1.5 font-semibold text-sky-900 shadow-[0_10px_28px_rgb(15_118_255_/_0.35)] backdrop-blur transition hover:brightness-110 active:scale-[0.98]"
+                >
+                  Закрыть
+                </button>
+                <div className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[12px] text-white/75 shadow-[0_8px_20px_rgb(5_24_74_/_0.4)]">
+                  Telegram WebApp
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/75 text-[11px] font-semibold text-sky-900 shadow-[0_14px_34px_rgba(2,110,255,0.65)]">
-                ИП
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {logoUrl ? (
+                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-3xl border border-white/40 bg-white/80 shadow-[0_12px_32px_rgb(59_130_246_/_0.4)]">
+                      <img src={logoUrl} alt="Логотип" className="h-full w-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-3xl bg-white/85 text-sm font-semibold text-sky-800 shadow-[0_12px_32px_rgb(3_144_255_/_0.7)]">
+                      РБК
+                    </div>
+                  )}
+                  <div className="leading-tight">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-white/70">
+                      Стройинвест
+                    </div>
+                    <div className="text-xs font-medium text-white/85">
+                      Ежедневные отчёты по объектам
+                    </div>
+                  </div>
+                </div>
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/75 text-[11px] font-semibold text-sky-900 shadow-[0_14px_34px_rgb(2_110_255_/_0.65)]">
+                  ИП
+                </div>
               </div>
             </header>
 
@@ -254,26 +335,26 @@ export default function TelegramWebAppGlassPure() {
               <TabsList className="mb-5 grid grid-cols-3 gap-1 rounded-full bg-white/15 p-1 text-[12px] text-white/75">
                 <TabsTrigger
                   value="report"
-                  className="flex items-center justify-center gap-1 rounded-full px-3 py-2 transition data-[state=active]:bg-white data-[state=active]:text-sky-900 data-[state=active]:shadow-[0_12px_30px_rgba(255,255,255,0.45)]"
+                  className="flex items-center justify-center gap-1 rounded-full px-3 py-2 transition data-[state=active]:bg-white data-[state=active]:text-sky-900 data-[state=active]:shadow-[0_12px_30px_rgb(255_255_255_/_0.45)]"
                 >
                   <ClipboardList className="h-3.5 w-3.5" /> Отчёт
                 </TabsTrigger>
                 <TabsTrigger
                   value="history"
-                  className="flex items-center justify-center gap-1 rounded-full px-3 py-2 transition data-[state=active]:bg-white data-[state=active]:text-sky-900 data-[state=active]:shadow-[0_12px_30px_rgba(255,255,255,0.45)]"
+                  className="flex items-center justify-center gap-1 rounded-full px-3 py-2 transition data-[state=active]:bg-white data-[state=active]:text-sky-900 data-[state=active]:shadow-[0_12px_30px_rgb(255_255_255_/_0.45)]"
                 >
                   <History className="h-3.5 w-3.5" /> История
                 </TabsTrigger>
                 <TabsTrigger
                   value="admin"
-                  className="flex items-center justify-center gap-1 rounded-full px-3 py-2 transition data-[state=active]:bg-white data-[state=active]:text-sky-900 data-[state=active]:shadow-[0_12px_30px_rgba(255,255,255,0.45)]"
+                  className="flex items-center justify-center gap-1 rounded-full px-3 py-2 transition data-[state=active]:bg-white data-[state=active]:text-sky-900 data-[state=active]:shadow-[0_12px_30px_rgb(255_255_255_/_0.45)]"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" /> Доступ
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="report" className="mt-0">
-                <Card className="border-white/20 bg-white/10 text-white shadow-[0_24px_60px_rgba(15,28,83,0.45)] backdrop-blur-[28px]">
+                <Card className="border-white/20 bg-white/10 text-white shadow-[0_24px_60px_rgb(15_28_83_/_0.45)] backdrop-blur-[28px]">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-[20px] font-semibold tracking-wide text-white">
                       Ежедневный отчёт
@@ -289,7 +370,7 @@ export default function TelegramWebAppGlassPure() {
                         <div className="relative">
                           <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/65" />
                           <Select value={project} onValueChange={setProject}>
-                            <SelectTrigger className="h-11 rounded-2xl border border-white/20 bg-white/10 pl-9 pr-10 text-[13px] text-white/90 shadow-[0_16px_38px_rgba(7,24,74,0.55)] backdrop-blur">
+                            <SelectTrigger className="h-11 rounded-2xl border border-white/20 bg-white/10 pl-9 pr-10 text-[13px] text-white/90 shadow-[0_16px_38px_rgb(7_24_74_/_0.55)] backdrop-blur">
                               <SelectValue placeholder="Выберите объект" />
                             </SelectTrigger>
                             <SelectContent className="border border-white/15 bg-[#07132F]/95 text-white">
@@ -309,7 +390,7 @@ export default function TelegramWebAppGlassPure() {
                         <div className="relative">
                           <HardHat className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/65" />
                           <Select value={workType} onValueChange={setWorkType}>
-                            <SelectTrigger className="h-11 rounded-2xl border border-white/20 bg-white/10 pl-9 pr-10 text-[13px] text-white/90 shadow-[0_16px_38px_rgba(7,24,74,0.55)] backdrop-blur">
+                            <SelectTrigger className="h-11 rounded-2xl border border-white/20 bg-white/10 pl-9 pr-10 text-[13px] text-white/90 shadow-[0_16px_38px_rgb(7_24_74_/_0.55)] backdrop-blur">
                               <SelectValue placeholder="Выберите вид работ" />
                             </SelectTrigger>
                             <SelectContent className="border border-white/15 bg-[#07132F]/95 text-white">
@@ -424,7 +505,7 @@ export default function TelegramWebAppGlassPure() {
                         </div>
                         <Button
                           type="button"
-                          className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#5FE0FF] via-[#7DF0FF] to-[#B5F5FF] px-4 py-1.5 text-[12px] font-semibold text-sky-900 shadow-[0_18px_50px_rgба(3,144,255,0.9)] hover:brightness-110"
+                          className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#5FE0FF] via-[#7DF0FF] to-[#B5F5FF] px-4 py-1.5 text-[12px] font-semibold text-sky-900 shadow-[0_18px_50px_rgb(3_144_255_/_0.9)] hover:brightness-110"
                           onClick={onPickFiles}
                         >
                           <Upload className="h-3.5 w-3.5" /> Выбрать
@@ -451,7 +532,7 @@ export default function TelegramWebAppGlassPure() {
                       <div className="flex items-center gap-3">
                         <Button
                           type="button"
-                          className="h-11 rounded-full bg-gradient-to-r from-[#5FE0FF] via-[#7DF0FF] to-[#B5F5FF] px-6 text-[14px] font-semibold text-sky-900 shadow-[0_24px_60px_rgba(3,144,255,0.85)] hover:brightness-110 disabled:opacity-70"
+                          className="h-11 rounded-full bg-gradient-to-r from-[#5FE0FF] via-[#7DF0FF] to-[#B5F5FF] px-6 text-[14px] font-semibold text-sky-900 shadow-[0_24px_60px_rgb(3_144_255_/_0.85)] hover:brightness-110 disabled:opacity-70"
                           onClick={sendReport}
                           disabled={sending}
                         >
@@ -475,7 +556,7 @@ export default function TelegramWebAppGlassPure() {
               </TabsContent>
 
               <TabsContent value="history" className="mt-0">
-                <Card className="border-white/20 bg-white/10 text-white shadow-[0_24px_60px_rgба(15,28,83,0.45)] backdrop-blur-[28px]">
+                <Card className="border-white/20 bg-white/10 text-white shadow-[0_24px_60px_rgb(15_28_83_/_0.45)] backdrop-blur-[28px]">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-[18px] font-semibold text-white">
                       <History className="h-4 w-4" /> История отчётов
@@ -555,7 +636,7 @@ export default function TelegramWebAppGlassPure() {
               </TabsContent>
 
               <TabsContent value="admin" className="mt-0">
-                <Card className="border-white/20 bg-white/10 text-white shadow-[0_24px_60px_rgба(15,28,83,0.45)] backdrop-blur-[28px]">
+                <Card className="border-white/20 bg-white/10 text-white shadow-[0_24px_60px_rgb(15_28_83_/_0.45)] backdrop-blur-[28px]">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-[18px] font-semibold text-white">
                       <ShieldCheck className="h-4 w-4" /> Назначение доступа
@@ -629,7 +710,7 @@ export default function TelegramWebAppGlassPure() {
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                className="h-8 rounded-full border-none bg-white/85 px-3 text-[11px] font-semibold text-sky-800 shadow-[0_12px_32px_rgба(3,144,255,0.55)] hover:brightness-110"
+                                className="h-8 rounded-full border-none bg-white/85 px-3 text-[11px] font-semibold text-sky-800 shadow-[0_12px_32px_rgb(3_144_255_/_0.55)] hover:brightness-110"
                               >
                                 Изменить
                               </Button>
