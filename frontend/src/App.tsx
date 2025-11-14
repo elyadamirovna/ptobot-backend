@@ -22,6 +22,9 @@ import {
   Upload,
   History,
   ClipboardList,
+  HardHat,
+  History,
+  Image as ImageIcon,
   ShieldCheck,
 } from "lucide-react";
 
@@ -269,10 +272,15 @@ export default function TelegramWebAppGlassPure() {
       const message = error instanceof Error ? error.message : "Ошибка при отправке отчёта";
       alert(message);
     } finally {
-      setSending(false);
-      setTimeout(() => setProgress(0), 600);
+      setSending(false)
+      setTimeout(() => setProgress(0), 600)
     }
-  }
+  }, [comment, files, machines, people, resetForm, volume, workType])
+
+  const previewPlaceholders = useMemo(() => {
+    const visible = previews.slice(0, 3)
+    return visible.length ? visible : [null, null, null]
+  }, [previews])
 
   return (
     <div
