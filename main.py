@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 # ---------- Модели ----------
 
+
 class WorkTypeOut(BaseModel):
     id: int
     name: str
@@ -32,7 +33,7 @@ class ReportOut(BaseModel):
     photo_urls: List[str]
 
 
-# ---------- Инициализация приложения ----------
+# ---------- Настройки ----------
 
 app = FastAPI(title="Ptobot backend")
 
@@ -43,10 +44,9 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # Размер блока для потоковой записи файлов (1 МБ)
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 
-# Простое хранилище в памяти (пока без базы)
-REPORTS: List[ReportOut] = []
+REPORTS: Deque[ReportOut] = deque(maxlen=MAX_REPORTS)
+REPORT_ID_COUNTER = count(1)
 
-# CORS, чтобы фронт и WebApp могли стучаться
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # при желании можно сузить до домена фронта
@@ -55,11 +55,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Раздача файлов по /uploads/...
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 # ---------- Виды работ ----------
+
 
 @app.get("/work_types", response_model=List[WorkTypeOut])
 async def get_work_types() -> List[WorkTypeOut]:
@@ -161,6 +161,7 @@ async def list_reports(
 
 
 # ---------- Корень ----------
+
 
 @app.get("/")
 async def root() -> dict[str, str]:
