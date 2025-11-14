@@ -63,6 +63,22 @@ type AccessRow = {
   role: string;
 };
 
+
+type HistoryRow = {
+  id: number;
+  project_id: string;
+  date: string;
+  work_type_id: string;
+  description: string;
+  photos: string[];
+};
+
+type AccessRow = {
+  user: { id: number; name: string };
+  projects: string[];
+  role: string;
+};
+
 export default function TelegramWebAppGlassPure() {
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);

@@ -40,6 +40,9 @@ app = FastAPI(title="Ptobot backend")
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# Размер блока для потоковой записи файлов (1 МБ)
+UPLOAD_CHUNK_SIZE = 1024 * 1024
+
 # Простое хранилище в памяти (пока без базы)
 REPORTS: List[ReportOut] = []
 
@@ -70,6 +73,19 @@ async def get_work_types() -> List[WorkTypeOut]:
 
 
 # ---------- Создание отчёта ----------
+
+async def _save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
+  """Сохраняет загруженный файл на диск, записывая его порциями."""
+
+  async with aiofiles.open(destination_path, "wb") as destination:
+    while True:
+      chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
+      if not chunk:
+        break
+      await destination.write(chunk)
+
+  await upload_file.close()
+
 
 @app.post("/reports", response_model=ReportOut)
 async def create_report(
