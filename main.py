@@ -3,6 +3,7 @@ import uuid
 import datetime as dt
 from typing import List, Optional
 
+import aiofiles
 from fastapi import FastAPI, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +35,9 @@ app = FastAPI(title="Ptobot backend")
 # Папка для сохранения фото
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Размер блока для потоковой записи файлов (1 МБ)
+UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 # Простое хранилище в памяти (пока без базы)
 REPORTS: List[ReportOut] = []
@@ -68,6 +72,19 @@ async def get_work_types():
 
 # ---------- Создание отчёта ----------
 
+async def _save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
+  """Сохраняет загруженный файл на диск, записывая его порциями."""
+
+  async with aiofiles.open(destination_path, "wb") as destination:
+    while True:
+      chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
+      if not chunk:
+        break
+      await destination.write(chunk)
+
+  await upload_file.close()
+
+
 @app.post("/reports", response_model=ReportOut)
 async def create_report(
   user_id: str = Form(...),
@@ -98,10 +115,8 @@ async def create_report(
     filename = f"{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(UPLOAD_DIR, filename)
 
-    # сохраняем файл
-    content = await photo.read()
-    with open(file_path, "wb") as f:
-      f.write(content)
+    # сохраняем файл порциями, чтобы не держать всё содержимое в памяти
+    await _save_upload_file(photo, file_path)
 
     photo_urls.append(f"/uploads/{filename}")
 
@@ -137,12 +152,12 @@ async def list_reports(
     - по user_id (если передан)
     - по work_type_id (если передан)
   """
-  result = REPORTS
-  if user_id is not None:
-    result = [r for r in result if r.user_id == user_id]
-  if work_type_id is not None:
-    result = [r for r in result if r.work_type_id == work_type_id]
-  return result
+  return [
+    report
+    for report in REPORTS
+    if (user_id is None or report.user_id == user_id)
+    and (work_type_id is None or report.work_type_id == work_type_id)
+  ]
 
 
 # ---------- Корень ----------
