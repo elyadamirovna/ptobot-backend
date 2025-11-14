@@ -1,210 +1,294 @@
-import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react"
+import React, { useMemo, useState, useEffect, useRef } from "react";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/select";
+
 import {
-  Building2,
   CalendarDays,
+  Building2,
+  HardHat,
+  Users,
+  Image as ImageIcon,
+  Upload,
+  History,
   ClipboardList,
   HardHat,
   History,
   Image as ImageIcon,
   ShieldCheck,
-  Upload,
-  Users,
-} from "lucide-react"
+} from "lucide-react";
 
-import {
-  ACCESS_LIST,
-  API_URL,
-  DEFAULT_WORK_TYPES,
-  DEMO_HISTORY,
-  PROJECTS,
-} from "@/constants"
-import { useTelegramWebApp } from "@/hooks/useTelegramWebApp"
-import { formatRuDate, summarizeDescription } from "@/lib/format"
-import type { WorkType, WorkTypeResponse } from "@/types"
+const API_URL = "https://ptobot-backend.onrender.com";
 
-const SAFE_AREA_STYLE = {
-  paddingTop: "calc(env(safe-area-inset-top, 0px) + 40px)",
-  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 40px)",
-} as const
+type WorkType = { id: string; name: string };
+type WorkTypeResponse = { id: string | number; name: string };
+
+type TelegramWebApp = {
+  ready: () => void;
+  expand?: () => void;
+  close: () => void;
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
+};
+
+type TelegramWindow = {
+  WebApp?: TelegramWebApp;
+};
+
+declare global {
+  interface Window {
+    Telegram?: TelegramWindow;
+  }
+}
+
+type HistoryRow = {
+  id: number;
+  project_id: string;
+  date: string;
+  work_type_id: string;
+  description: string;
+  photos: string[];
+};
+
+type AccessRow = {
+  user: { id: number; name: string };
+  projects: string[];
+  role: string;
+};
+
+
+type HistoryRow = {
+  id: number;
+  project_id: string;
+  date: string;
+  work_type_id: string;
+  description: string;
+  photos: string[];
+};
+
+type AccessRow = {
+  user: { id: number; name: string };
+  projects: string[];
+  role: string;
+};
 
 export default function TelegramWebAppGlassPure() {
-  const [logoUrl, setLogoUrl] = useState("")
-  const { close: closeApp } = useTelegramWebApp()
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);
 
   useEffect(() => {
     try {
-      const qs = new URLSearchParams(window.location.search)
-      const fromQuery = qs.get("logo")
-      setLogoUrl(fromQuery || "")
+      const qs = new URLSearchParams(window.location.search);
+      const fromQuery = qs.get("logo");
+      setLogoUrl(fromQuery || "");
     } catch (error) {
-      console.warn("Cannot parse logo query param", error)
-      setLogoUrl("")
+      console.warn("Cannot parse logo query param", error);
+      setLogoUrl("");
     }
-  }, [])
+  }, []);
 
-  const [activeTab, setActiveTab] = useState("report")
-  const [project, setProject] = useState<string>(() => PROJECTS[0]?.id ?? "1")
-  const [workType, setWorkType] = useState<string | undefined>(
-    DEFAULT_WORK_TYPES[0]?.id,
-  )
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [volume, setVolume] = useState("")
-  const [machines, setMachines] = useState("")
-  const [people, setPeople] = useState("")
-  const [comment, setComment] = useState("")
+  const [activeTab, setActiveTab] = useState("report");
+  const [project, setProject] = useState<string | undefined>("1");
+  const [workType, setWorkType] = useState<string | undefined>("2");
+  const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [volume, setVolume] = useState("");
+  const [machines, setMachines] = useState("");
+  const [people, setPeople] = useState("");
+  const [comment, setComment] = useState("");
 
-  const [workTypes, setWorkTypes] = useState<WorkType[]>(DEFAULT_WORK_TYPES)
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([
+    { id: "1", name: "Земляные работы" },
+    { id: "2", name: "Бетонирование" },
+    { id: "3", name: "Монтаж конструкций" },
+  ]);
 
   useEffect(() => {
-    const controller = new AbortController()
-
-    async function loadWorkTypes() {
-      try {
-        const response = await fetch(`${API_URL}/work_types`, {
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          return
-        }
-        const rows = (await response.json()) as WorkTypeResponse[]
-        if (!Array.isArray(rows) || rows.length === 0) {
-          return
-        }
-        const mapped = rows.map((item) => ({
-          id: String(item.id),
-          name: item.name,
-        }))
-        setWorkTypes(mapped)
-        setWorkType((current) => current ?? mapped[0]?.id)
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return
-        }
-        console.warn("Не удалось загрузить виды работ", error)
-      }
+    const tg = window?.Telegram?.WebApp;
+    if (tg) {
+      setWebApp(tg);
+      tg.ready();
+      tg.expand?.();
+      tg.disableVerticalSwipes?.();
+      return () => {
+        tg.enableVerticalSwipes?.();
+      };
     }
+    return undefined;
+  }, []);
 
-    void loadWorkTypes()
+  useEffect(() => {
+    fetch(`${API_URL}/work_types`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((rows) => {
+        if (Array.isArray(rows) && rows.length) {
+          const mapped: WorkType[] = rows.map((item: WorkTypeResponse) => ({
+            id: String(item.id),
+            name: item.name,
+          }));
+          setWorkTypes(mapped);
+          if (!workType) {
+            setWorkType(mapped[0].id);
+          }
+        }
+      })
+      .catch(() => {
+        /* silent fallback to default workTypes */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => controller.abort()
-  }, [])
+  const projects = [
+    { id: "1", name: "ЖК «Северный»", address: "ул. Парковая, 12" },
+    { id: "2", name: "ЖК «Академический»", address: "пр-т Науки, 5" },
+  ];
 
-  const historyForProject = DEMO_HISTORY.filter(
-    (item) => item.project_id === project,
-  )
+  const history = useMemo<HistoryRow[]>(
+    () => [
+      {
+        id: 101,
+        project_id: "1",
+        date: "2025-11-11",
+        work_type_id: "2",
+        description: "Бетонирование ростверка\nОбъём: 12,5 м³\nТехника: 2\nЛюди: 7",
+        photos: [
+          "https://picsum.photos/seed/a/300/200",
+          "https://picsum.photos/seed/b/300/200",
+        ],
+      },
+      {
+        id: 100,
+        project_id: "1",
+        date: "2025-11-10",
+        work_type_id: "1",
+        description: "Разработка котлована\nОбъём: 80 м³\nТехника: 3\nЛюди: 5",
+        photos: ["https://picsum.photos/seed/c/300/200"],
+      },
+    ],
+    []
+  );
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [files, setFiles] = useState<File[]>([])
-  const [previews, setPreviews] = useState<string[]>([])
-
-  const updatePreviews = useCallback((selected: File[]) => {
-    setPreviews((previous) => {
-      previous.forEach((url) => URL.revokeObjectURL(url))
-      return selected.map((file) => URL.createObjectURL(file))
-    })
-  }, [])
-
-  const handlePickFiles = useCallback(() => {
-    fileInputRef.current?.click()
-  }, [])
-
-  const handleFilesSelected = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const selected = Array.from(event.target.files ?? [])
-      setFiles(selected)
-      updatePreviews(selected)
-      event.target.value = ""
+  const accessList: AccessRow[] = [
+    {
+      user: { id: 8, name: "ИП «СтройСервис»" },
+      projects: ["1"],
+      role: "reporter",
     },
-    [updatePreviews],
-  )
+    {
+      user: { id: 9, name: "ООО «МонтажГрупп»" },
+      projects: ["1", "2"],
+      role: "reporter",
+    },
+  ];
 
-  useEffect(() => {
-    return () => {
-      previews.forEach((url) => URL.revokeObjectURL(url))
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  const onPickFiles = () => fileInputRef.current?.click();
+
+  const onFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files || []);
+    setFiles(selected);
+
+    Promise.all(
+      selected.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.readAsDataURL(file);
+          })
+      )
+    ).then(setPreviews);
+  };
+
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const handleCloseApp = () => {
+    if (webApp) {
+      webApp.close();
+      return;
     }
-  }, [previews])
+    if (window.history.length > 1) {
+      window.history.back();
+    }
+  };
 
-  const [sending, setSending] = useState(false)
-  const [progress, setProgress] = useState(0)
-
-  const resetForm = useCallback(() => {
-    setVolume("")
-    setMachines("")
-    setPeople("")
-    setComment("")
-    setFiles([])
-    setPreviews((previous) => {
-      previous.forEach((url) => URL.revokeObjectURL(url))
-      return []
-    })
-  }, [])
-
-  const sendReport = useCallback(async () => {
+  async function sendReport() {
     if (!workType) {
-      alert("Выберите вид работ")
-      return
+      alert("Выберите вид работ");
+      return;
     }
-    if (files.length === 0) {
-      alert("Пожалуйста, выберите фото!")
-      return
+    if (!files.length) {
+      alert("Пожалуйста, выберите фото!");
+      return;
     }
 
-    const description = buildDescription(comment, volume, machines, people)
-    const form = new FormData()
-    form.append("user_id", "1")
-    form.append("work_type_id", workType)
-    form.append("description", description)
-    form.append("people", people)
-    form.append("volume", volume)
-    form.append("machines", machines)
-    files.forEach((file) => form.append("photos", file))
+    const descParts = [comment];
+    if (volume) descParts.push(`Объём: ${volume}`);
+    if (machines) descParts.push(`Техника: ${machines}`);
+    if (people) descParts.push(`Люди: ${people}`);
+    const description = descParts.filter(Boolean).join("\n");
+
+    const form = new FormData();
+    form.append("user_id", "1");
+    form.append("work_type_id", String(workType));
+    form.append("description", description);
+    form.append("people", people);
+    form.append("volume", volume);
+    form.append("machines", machines);
+    files.forEach((file) => form.append("photos", file));
 
     try {
-      setSending(true)
-      setProgress(25)
-      const response = await fetch(`${API_URL}/reports`, {
+      setSending(true);
+      setProgress(25);
+      const res = await fetch(`${API_URL}/reports`, {
         method: "POST",
         body: form,
-      })
-      setProgress(80)
-      if (!response.ok) {
-        throw new Error("Ошибка при отправке отчёта")
-      }
-      const data = await response.json()
-      setProgress(100)
-      alert(`Отчёт успешно отправлен! ID: ${data.id}`)
-      resetForm()
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Ошибка при отправке отчёта"
-      alert(message)
+      });
+      setProgress(80);
+      if (!res.ok) throw new Error("Ошибка при отправке отчёта");
+      const data = await res.json();
+      setProgress(100);
+      alert(`Отчёт успешно отправлен! ID: ${data.id}`);
+      setVolume("");
+      setMachines("");
+      setPeople("");
+      setComment("");
+      setFiles([]);
+      setPreviews([]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Ошибка при отправке отчёта";
+      alert(message);
     } finally {
       setSending(false)
       setTimeout(() => setProgress(0), 600)
     }
   }, [comment, files, machines, people, resetForm, volume, workType])
 
-  const previewPlaceholders = previews.length
-    ? previews.slice(0, 3)
-    : Array.from({ length: 3 }, () => null as string | null)
+  const previewPlaceholders = useMemo(() => {
+    const visible = previews.slice(0, 3)
+    return visible.length ? visible : [null, null, null]
+  }, [previews])
 
   return (
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05122D] px-4 py-10 text-white"
-      style={SAFE_AREA_STYLE}
+      style={{
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 40px)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 40px)",
+      }}
     >
       <div className="pointer-events-none absolute -left-24 -top-32 h-72 w-72 rounded-full bg-sky-500/40 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-0 right-[-120px] h-[420px] w-[420px] rounded-full bg-indigo-600/40 blur-[160px]" />
@@ -220,7 +304,7 @@ export default function TelegramWebAppGlassPure() {
               <div className="flex items-center justify-between text-[13px]">
                 <button
                   type="button"
-                  onClick={closeApp}
+                  onClick={handleCloseApp}
                   className="rounded-full border border-white/30 bg-white/80 px-4 py-1.5 font-semibold text-sky-900 shadow-[0_10px_28px_rgb(15_118_255_/_0.35)] backdrop-blur transition hover:brightness-110 active:scale-[0.98]"
                 >
                   Закрыть
@@ -283,7 +367,7 @@ export default function TelegramWebAppGlassPure() {
                     <CardTitle className="text-[20px] font-semibold tracking-wide text-white">
                       Ежедневный отчёт
                     </CardTitle>
-                    <p className="text-xs text-white/80">{formatRuDate(date)}</p>
+                    <p className="text-xs text-white/80">{formatRu(date)}</p>
                   </CardHeader>
                   <CardContent className="space-y-5 text-[13px]">
                     <div className="grid gap-3 rounded-3xl border border-white/20 bg-white/5 p-4 backdrop-blur-xl">
@@ -298,7 +382,7 @@ export default function TelegramWebAppGlassPure() {
                               <SelectValue placeholder="Выберите объект" />
                             </SelectTrigger>
                             <SelectContent className="border border-white/15 bg-[#07132F]/95 text-white">
-                              {PROJECTS.map((item) => (
+                              {projects.map((item) => (
                                 <SelectItem key={item.id} value={item.id}>
                                   {item.name}
                                 </SelectItem>
@@ -420,7 +504,7 @@ export default function TelegramWebAppGlassPure() {
                         accept="image/*"
                         multiple
                         className="hidden"
-                        onChange={handleFilesSelected}
+                        onChange={onFilesSelected}
                       />
 
                       <div className="flex items-center gap-3 rounded-3xl border border-dashed border-white/30 bg-white/5 px-4 py-3 text-sm text-white/75">
@@ -430,24 +514,20 @@ export default function TelegramWebAppGlassPure() {
                         <Button
                           type="button"
                           className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#5FE0FF] via-[#7DF0FF] to-[#B5F5FF] px-4 py-1.5 text-[12px] font-semibold text-sky-900 shadow-[0_18px_50px_rgb(3_144_255_/_0.9)] hover:brightness-110"
-                          onClick={handlePickFiles}
+                          onClick={onPickFiles}
                         >
                           <Upload className="h-3.5 w-3.5" /> Выбрать
                         </Button>
                       </div>
 
                       <div className="grid grid-cols-3 gap-3">
-                        {previewPlaceholders.map((src, index) => (
+                        {(previews.length ? previews : [null, null, null]).slice(0, 3).map((src, index) => (
                           <div
                             key={index}
                             className="flex aspect-[4/3] items-center justify-center rounded-2xl border border-white/20 bg-white/5"
                           >
                             {src ? (
-                              <img
-                                src={src}
-                                alt="Предпросмотр"
-                                className="h-full w-full rounded-2xl object-cover"
-                              />
+                              <img src={src} alt="Предпросмотр" className="h-full w-full rounded-2xl object-cover" />
                             ) : (
                               <span className="text-[11px] text-white/45">Фото</span>
                             )}
@@ -502,7 +582,7 @@ export default function TelegramWebAppGlassPure() {
                               <SelectValue placeholder="Объект" />
                             </SelectTrigger>
                             <SelectContent className="border border-white/15 bg-[#07132F]/95 text-white">
-                              {PROJECTS.map((item) => (
+                              {projects.map((item) => (
                                 <SelectItem key={item.id} value={item.id}>
                                   {item.name}
                                 </SelectItem>
@@ -532,32 +612,32 @@ export default function TelegramWebAppGlassPure() {
                     </div>
 
                     <div className="space-y-3">
-                      {historyForProject.map((item) => (
-                        <div
-                          key={item.id}
-                          className="rounded-3xl border border-white/15 bg-white/5 p-3 backdrop-blur text-white/85"
-                        >
-                          <div className="flex items-center justify-between text-[12px]">
-                            <span>{formatRuDate(item.date)}</span>
-                            <span className="text-white/75">
-                              {workTypes.find((row) => row.id === item.work_type_id)?.name}
-                            </span>
+                      {history
+                        .filter((item) => item.project_id === project)
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-3xl border border-white/15 bg-white/5 p-3 backdrop-blur text-white/85"
+                          >
+                            <div className="flex items-center justify-between text-[12px]">
+                              <span>{formatRu(item.date)}</span>
+                              <span className="text-white/75">
+                                {workTypes.find((row) => row.id === item.work_type_id)?.name}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[12px] text-white/85">{toOneLine(item.description)}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {item.photos.map((src, index) => (
+                                <img
+                                  key={index}
+                                  src={src}
+                                  alt="Фото отчёта"
+                                  className="h-16 w-24 rounded-xl border border-white/35 object-cover"
+                                />
+                              ))}
+                            </div>
                           </div>
-                          <p className="mt-1 text-[12px] text-white/85">
-                            {summarizeDescription(item.description)}
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {item.photos.map((src) => (
-                              <img
-                                key={src}
-                                src={src}
-                                alt="Фото отчёта"
-                                className="h-16 w-24 rounded-xl border border-white/35 object-cover"
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </CardContent>
                 </Card>
@@ -591,7 +671,7 @@ export default function TelegramWebAppGlassPure() {
                               <SelectValue placeholder="Выберите объект" />
                             </SelectTrigger>
                             <SelectContent className="border border-white/15 bg-[#07132F]/95 text-white">
-                              {PROJECTS.map((item) => (
+                              {projects.map((item) => (
                                 <SelectItem key={item.id} value={item.id}>
                                   {item.name}
                                 </SelectItem>
@@ -622,18 +702,15 @@ export default function TelegramWebAppGlassPure() {
                         Текущие назначения
                       </p>
                       <div className="space-y-2">
-                        {ACCESS_LIST.map((row) => (
+                        {accessList.map((row, index) => (
                           <div
-                            key={row.user.id}
+                            key={index}
                             className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-3 py-3 backdrop-blur"
                           >
                             <div>
                               <div className="text-[13px] font-medium text-white/90">{row.user.name}</div>
                               <div className="text-[11px] text-white/65">
-                                Проекты: {row.projects
-                                  .map((pid) => PROJECTS.find((item) => item.id === pid)?.name)
-                                  .filter(Boolean)
-                                  .join(", ")}
+                                Проекты: {row.projects.map((pid) => projects.find((item) => item.id === pid)?.name).join(", ")}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -658,18 +735,22 @@ export default function TelegramWebAppGlassPure() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-function buildDescription(
-  comment: string,
-  volume: string,
-  machines: string,
-  people: string,
-): string {
-  const parts = [comment]
-  if (volume) parts.push(`Объём: ${volume}`)
-  if (machines) parts.push(`Техника: ${machines}`)
-  if (people) parts.push(`Люди: ${people}`)
-  return parts.filter(Boolean).join("\n")
+function formatRu(iso: string) {
+  const [year, month, day] = iso.split("-");
+  return `${day}.${month}.${year}`;
+}
+
+function toOneLine(desc: string) {
+  const source = String(desc || "");
+  const vol = source.match(/Объём:\s*([^\n]+)/i)?.[1]?.trim();
+  const mach = source.match(/Техника:\s*([^\n]+)/i)?.[1]?.trim();
+  const ppl = source.match(/Люди:\s*([^\n]+)/i)?.[1]?.trim();
+  const parts: string[] = [];
+  if (vol) parts.push(`Объём: ${vol}`);
+  if (mach) parts.push(`Техника: ${mach}`);
+  if (ppl) parts.push(`Люди: ${ppl}`);
+  return parts.length ? parts.join(" • ") : source.replace(/\s+/g, " ").trim();
 }
