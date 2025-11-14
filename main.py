@@ -7,6 +7,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import urlparse
 
 from fastapi import File, Form, FastAPI, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -87,6 +88,38 @@ async def _save_upload_file(upload_file: UploadFile, destination_path: str) -> N
   await upload_file.close()
 
 
+def _delete_report_photos(report: ReportOut) -> None:
+    """Удаляет файлы фотографий, связанные с отчётом."""
+
+    for photo_url in report.photo_urls:
+        parsed_url = urlparse(photo_url)
+        filename = Path(parsed_url.path).name
+        if not filename:
+            continue
+
+        file_path = UPLOAD_DIR / filename
+        try:
+            file_path.unlink()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            # Файл мог быть удалён другим процессом или недоступен.
+            continue
+
+
+def _evict_oldest_report() -> None:
+    """Удаляет самый старый отчёт и связанные с ним файлы при переполнении."""
+
+    if REPORTS.maxlen is None:
+        return
+
+    if len(REPORTS) < REPORTS.maxlen:
+        return
+
+    oldest_report = REPORTS.popleft()
+    _delete_report_photos(oldest_report)
+
+
 @app.post("/reports", response_model=ReportOut)
 async def create_report(
     request: Request,
@@ -139,6 +172,7 @@ async def create_report(
         photo_urls=photo_urls,
     )
 
+    _evict_oldest_report()
     REPORTS.append(report)
     return report
 
