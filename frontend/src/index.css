@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-50 text-slate-900;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -37,6 +30,7 @@ body {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -65,13 +59,22 @@ body {
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply font-sans;
+    background-color: #05122d;
+    color: #f8fbff;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgb(59 130 246 / 0.28), transparent 55%),
+      radial-gradient(circle at 80% 0%, rgb(165 243 252 / 0.22), transparent 45%),
+      radial-gradient(circle at 50% 80%, rgb(37 99 235 / 0.24), transparent 50%);
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: none;
+    touch-action: manipulation;
+    min-height: 100vh;
   }
 }
