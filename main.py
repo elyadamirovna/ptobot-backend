@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import datetime as dt
+import logging
 import os
 import uuid
+from collections import deque
+from itertools import count
 from pathlib import Path
-from typing import List, Optional
+from typing import Deque, List, Optional
 
+import aiofiles
 from fastapi import File, Form, FastAPI, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+from bot import start_bot
 
 # ---------- Модели ----------
 
@@ -33,7 +41,19 @@ class ReportOut(BaseModel):
     photo_urls: List[str]
 
 
+class RootInfo(BaseModel):
+    """Ответ на запрос корневого URL для быстрой диагностики."""
+
+    status: str
+    message: str
+    docs_url: str
+    work_types_url: str
+    reports_url: str
+
+
 # ---------- Настройки ----------
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Ptobot backend")
 
@@ -44,8 +64,10 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # Размер блока для потоковой записи файлов (1 МБ)
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 
+MAX_REPORTS = 500
 REPORTS: Deque[ReportOut] = deque(maxlen=MAX_REPORTS)
 REPORT_ID_COUNTER = count(1)
+BOT_TASK_ATTR = "bot_task"
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,6 +78,47 @@ app.add_middleware(
 )
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+
+@app.get("/", response_model=RootInfo)
+async def root(request: Request) -> RootInfo:
+    """Поясняет, что сервис работает, и указывает основные маршруты."""
+
+    base_url = str(request.base_url).rstrip("/")
+    return RootInfo(
+        status="ok",
+        message="Бэкенд запущен. Используйте /docs для тестирования API.",
+        docs_url=f"{base_url}/docs",
+        work_types_url=str(request.url_for("get_work_types")),
+        reports_url=str(request.url_for("list_reports")),
+    )
+
+
+@app.on_event("startup")
+async def start_bot_task() -> None:
+    """Launch the Telegram bot alongside the FastAPI app."""
+
+    bot_token = os.getenv("BOT_TOKEN")
+    if not bot_token:
+        logger.warning("BOT_TOKEN is not set, Telegram bot will not be started")
+        setattr(app.state, BOT_TASK_ATTR, None)
+        return
+
+    task = asyncio.create_task(start_bot(bot_token))
+    setattr(app.state, BOT_TASK_ATTR, task)
+
+
+@app.on_event("shutdown")
+async def stop_bot_task() -> None:
+    """Stop the Telegram bot when the FastAPI app shuts down."""
+
+    bot_task: Optional[asyncio.Task] = getattr(app.state, BOT_TASK_ATTR, None)
+    if not bot_task:
+        return
+
+    bot_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await bot_task
 
 
 # ---------- Виды работ ----------
@@ -75,16 +138,16 @@ async def get_work_types() -> List[WorkTypeOut]:
 # ---------- Создание отчёта ----------
 
 async def _save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
-  """Сохраняет загруженный файл на диск, записывая его порциями."""
+    """Сохраняет загруженный файл на диск, записывая его порциями."""
 
-  async with aiofiles.open(destination_path, "wb") as destination:
-    while True:
-      chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
-      if not chunk:
-        break
-      await destination.write(chunk)
+    async with aiofiles.open(destination_path, "wb") as destination:
+        while True:
+            chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            await destination.write(chunk)
 
-  await upload_file.close()
+    await upload_file.close()
 
 
 @app.post("/reports", response_model=ReportOut)
@@ -118,13 +181,12 @@ async def create_report(
         filename = f"{uuid.uuid4().hex}{ext}"
         file_path = UPLOAD_DIR / filename
 
-        content = await photo.read()
-        file_path.write_bytes(content)
+        await _save_upload_file(photo, str(file_path))
 
         photo_url = request.url_for("uploads", path=filename)
         photo_urls.append(str(photo_url))
 
-    report_id = len(REPORTS) + 1
+    report_id = next(REPORT_ID_COUNTER)
     created_at = dt.datetime.now(dt.timezone.utc).isoformat()
 
     report = ReportOut(
@@ -166,3 +228,4 @@ async def list_reports(
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"status": "ok", "message": "Ptobot backend is running"}
+
