@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import datetime as dt
-import os
 import uuid
+from collections import deque
+from itertools import count
 from pathlib import Path
-from typing import List, Optional
+from typing import Deque, List, Optional
 
+import aiofiles
 from fastapi import File, Form, FastAPI, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -44,6 +46,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # Размер блока для потоковой записи файлов (1 МБ)
 UPLOAD_CHUNK_SIZE = 1024 * 1024
 
+MAX_REPORTS = 500
 REPORTS: Deque[ReportOut] = deque(maxlen=MAX_REPORTS)
 REPORT_ID_COUNTER = count(1)
 
@@ -75,16 +78,16 @@ async def get_work_types() -> List[WorkTypeOut]:
 # ---------- Создание отчёта ----------
 
 async def _save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
-  """Сохраняет загруженный файл на диск, записывая его порциями."""
+    """Сохраняет загруженный файл на диск, записывая его порциями."""
 
-  async with aiofiles.open(destination_path, "wb") as destination:
-    while True:
-      chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
-      if not chunk:
-        break
-      await destination.write(chunk)
+    async with aiofiles.open(destination_path, "wb") as destination:
+        while True:
+            chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            await destination.write(chunk)
 
-  await upload_file.close()
+    await upload_file.close()
 
 
 @app.post("/reports", response_model=ReportOut)
@@ -118,13 +121,12 @@ async def create_report(
         filename = f"{uuid.uuid4().hex}{ext}"
         file_path = UPLOAD_DIR / filename
 
-        content = await photo.read()
-        file_path.write_bytes(content)
+        await _save_upload_file(photo, str(file_path))
 
         photo_url = request.url_for("uploads", path=filename)
         photo_urls.append(str(photo_url))
 
-    report_id = len(REPORTS) + 1
+    report_id = next(REPORT_ID_COUNTER)
     created_at = dt.datetime.now(dt.timezone.utc).isoformat()
 
     report = ReportOut(
