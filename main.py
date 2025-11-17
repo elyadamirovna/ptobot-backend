@@ -39,6 +39,16 @@ class ReportOut(BaseModel):
     photo_urls: List[str]
 
 
+class RootInfo(BaseModel):
+    """Ответ на запрос корневого URL для быстрой диагностики."""
+
+    status: str
+    message: str
+    docs_url: str
+    work_types_url: str
+    reports_url: str
+
+
 # ---------- Настройки ----------
 
 logger = logging.getLogger(__name__)
