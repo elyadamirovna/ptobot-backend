@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime as dt
-import logging
-import os
 import uuid
 from collections import deque
 from itertools import count
@@ -78,20 +76,6 @@ app.add_middleware(
 )
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-
-
-@app.get("/", response_model=RootInfo)
-async def root(request: Request) -> RootInfo:
-    """Поясняет, что сервис работает, и указывает основные маршруты."""
-
-    base_url = str(request.base_url).rstrip("/")
-    return RootInfo(
-        status="ok",
-        message="Бэкенд запущен. Используйте /docs для тестирования API.",
-        docs_url=f"{base_url}/docs",
-        work_types_url=str(request.url_for("get_work_types")),
-        reports_url=str(request.url_for("list_reports")),
-    )
 
 
 @app.on_event("startup")
