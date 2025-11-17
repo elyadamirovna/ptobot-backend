@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import datetime as dt
 import uuid
 from collections import deque
@@ -14,6 +16,8 @@ from fastapi import File, Form, FastAPI, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+from bot import start_bot
 
 # ---------- Модели ----------
 
@@ -37,6 +41,8 @@ class ReportOut(BaseModel):
 
 # ---------- Настройки ----------
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Ptobot backend")
 
 # Папка для сохранения фото
@@ -49,6 +55,7 @@ UPLOAD_CHUNK_SIZE = 1024 * 1024
 MAX_REPORTS = 500
 REPORTS: Deque[ReportOut] = deque(maxlen=MAX_REPORTS)
 REPORT_ID_COUNTER = count(1)
+BOT_TASK_ATTR = "bot_task"
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,6 +66,33 @@ app.add_middleware(
 )
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+
+@app.on_event("startup")
+async def start_bot_task() -> None:
+    """Launch the Telegram bot alongside the FastAPI app."""
+
+    bot_token = os.getenv("BOT_TOKEN")
+    if not bot_token:
+        logger.warning("BOT_TOKEN is not set, Telegram bot will not be started")
+        setattr(app.state, BOT_TASK_ATTR, None)
+        return
+
+    task = asyncio.create_task(start_bot(bot_token))
+    setattr(app.state, BOT_TASK_ATTR, task)
+
+
+@app.on_event("shutdown")
+async def stop_bot_task() -> None:
+    """Stop the Telegram bot when the FastAPI app shuts down."""
+
+    bot_task: Optional[asyncio.Task] = getattr(app.state, BOT_TASK_ATTR, None)
+    if not bot_task:
+        return
+
+    bot_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await bot_task
 
 
 # ---------- Виды работ ----------
@@ -168,3 +202,4 @@ async def list_reports(
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"status": "ok", "message": "Ptobot backend is running"}
+

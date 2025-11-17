@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Final
+from typing import Optional
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
+
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://reports-frontend.onrender.com")
 
 
 def _get_env(name: str) -> str:
@@ -26,26 +28,19 @@ def _get_env(name: str) -> str:
     return value
 
 
-BOT_TOKEN: Final[str] = _get_env("BOT_TOKEN")
-WEBAPP_URL: Final[str] = os.getenv(
-    "WEBAPP_URL", "https://reports-frontend.onrender.com"
-)
+def _build_dispatcher(webapp_url: str) -> Dispatcher:
+    """Configure the dispatcher with the start command handler."""
 
-
-async def main() -> None:
-    """Configure polling dispatcher and start the bot."""
-
-    bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
     @dp.message(CommandStart())
-    async def start_cmd(message: types.Message) -> None:
+    async def start_cmd(message: types.Message) -> None:  # pragma: no cover - Telegram runtime
         keyboard = ReplyKeyboardMarkup(
             keyboard=[
                 [
                     KeyboardButton(
                         text="Открыть отчёты",
-                        web_app=WebAppInfo(url=WEBAPP_URL),
+                        web_app=WebAppInfo(url=webapp_url),
                     )
                 ]
             ],
@@ -57,8 +52,29 @@ async def main() -> None:
             reply_markup=keyboard,
         )
 
+    return dp
+
+
+async def start_bot(bot_token: Optional[str] = None, webapp_url: Optional[str] = None) -> None:
+    """Start the Telegram bot via long polling."""
+
+    token = bot_token or _get_env("BOT_TOKEN")
+    url = webapp_url or WEBAPP_URL
+
+    bot = Bot(token=token)
+    dp = _build_dispatcher(url)
+
     print("Бот запущен...")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
+
+
+async def main() -> None:
+    """Standalone entry point used when running `python bot.py`."""
+
+    await start_bot()
 
 
 if __name__ == "__main__":
