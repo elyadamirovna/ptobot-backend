@@ -13,10 +13,9 @@ from itertools import count
 from pathlib import Path
 from typing import Deque, List, Optional
 
-import aiofiles
+import boto3
 from fastapi import File, Form, FastAPI, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from bot import start_bot
@@ -52,12 +51,6 @@ class RootInfo(BaseModel):
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Ptobot backend")
 
-# Папка для сохранения фото
-UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-UPLOAD_CHUNK_SIZE = 1024 * 1024
-
 MAX_REPORTS = 500
 REPORTS: Deque[ReportOut] = deque(maxlen=MAX_REPORTS)
 REPORT_ID_COUNTER = count(1)
@@ -71,7 +64,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# ---------- Yandex Object Storage ----------
+
+YC_S3_ENDPOINT = os.getenv("YC_S3_ENDPOINT", "https://storage.yandexcloud.net")
+YC_S3_REGION = os.getenv("YC_S3_REGION", "ru-central1")
+YC_S3_BUCKET = os.getenv("YC_S3_BUCKET", "ptobot-assets")
+
+YC_S3_ACCESS_KEY_ID = os.getenv("YC_S3_ACCESS_KEY_ID")
+YC_S3_SECRET_ACCESS_KEY = os.getenv("YC_S3_SECRET_ACCESS_KEY")
+
+s3 = boto3.client(
+    "s3",
+    endpoint_url=YC_S3_ENDPOINT,
+    region_name=YC_S3_REGION,
+    aws_access_key_id=YC_S3_ACCESS_KEY_ID,
+    aws_secret_access_key=YC_S3_SECRET_ACCESS_KEY,
+)
+
+
+async def upload_to_yandex(file: UploadFile) -> str:
+    """Загружает файл в Yandex Object Storage и возвращает публичный URL."""
+
+    ext = Path(file.filename or "").suffix or ".jpg"
+    key = f"reports/{uuid.uuid4().hex}{ext}"
+
+    content = await file.read()
+
+    s3.put_object(
+        Bucket=YC_S3_BUCKET,
+        Key=key,
+        Body=content,
+        ContentType=file.content_type,
+        ACL="public-read",
+    )
+
+    return f"https://{YC_S3_BUCKET}.storage.yandexcloud.net/{key}"
+
 
 @app.on_event("startup")
 async def start_bot_task() -> None:
@@ -104,22 +132,10 @@ async def get_work_types() -> List[WorkTypeOut]:
         WorkTypeOut(id=3, name="Монтаж конструкций"),
     ]
 
-# ---------- Сохранение файла локально ----------
-
-async def _save_upload_file(upload_file: UploadFile, destination_path: str) -> None:
-    async with aiofiles.open(destination_path, "wb") as destination:
-        while True:
-            chunk = await upload_file.read(UPLOAD_CHUNK_SIZE)
-            if not chunk:
-                break
-            await destination.write(chunk)
-    await upload_file.close()
-
 # ---------- Создание отчёта ----------
 
 @app.post("/reports", response_model=ReportOut)
 async def create_report(
-    request: Request,
     user_id: str = Form(...),
     work_type_id: str = Form(...),
     description: str = Form(""),
@@ -131,15 +147,10 @@ async def create_report(
 
     photo_urls: List[str] = []
 
+    # Загружаем в Yandex Cloud
     for photo in photos:
-        ext = Path(photo.filename or "").suffix or ".jpg"
-        filename = f"{uuid.uuid4().hex}{ext}"
-        file_path = UPLOAD_DIR / filename
-
-        await _save_upload_file(photo, str(file_path))
-
-        photo_url = request.url_for("uploads", path=filename)
-        photo_urls.append(str(photo_url))
+        url = await upload_to_yandex(photo)
+        photo_urls.append(url)
 
     report_id = next(REPORT_ID_COUNTER)
     created_at = dt.datetime.now(dt.timezone.utc).isoformat()
@@ -176,6 +187,18 @@ async def list_reports(
 
 # ---------- Корень ----------
 
-@app.get("/")
-async def root() -> dict[str, str]:
-    return {"status": "ok", "message": "Ptobot backend is running"}
+@app.get("/", response_model=RootInfo)
+async def root(request: Request) -> RootInfo:
+    """Ответ на корневой URL с ссылками на основные эндпоинты."""
+
+    docs_url = str(request.url_for("swagger_ui_html"))
+    work_types_url = str(request.url_for("get_work_types"))
+    reports_url = str(request.url_for("list_reports"))
+
+    return RootInfo(
+        status="ok",
+        message="Ptobot backend is running",
+        docs_url=docs_url,
+        work_types_url=work_types_url,
+        reports_url=reports_url,
+    )
