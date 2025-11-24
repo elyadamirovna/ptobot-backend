@@ -68,7 +68,8 @@ app.add_middleware(
 
 YC_S3_ENDPOINT = os.getenv("YC_S3_ENDPOINT", "https://storage.yandexcloud.net")
 YC_S3_REGION = os.getenv("YC_S3_REGION", "ru-central1")
-YC_S3_BUCKET = os.getenv("YC_S3_BUCKET", "ptobot-assets")
+# Prefer YC_S3_BUCKET but allow legacy YANDEX_BUCKET for easier configuration.
+YC_S3_BUCKET = os.getenv("YC_S3_BUCKET") or os.getenv("YANDEX_BUCKET", "ptobot-assets")
 
 YC_S3_ACCESS_KEY_ID = os.getenv("YC_S3_ACCESS_KEY_ID")
 YC_S3_SECRET_ACCESS_KEY = os.getenv("YC_S3_SECRET_ACCESS_KEY")
