@@ -1,42 +1,76 @@
 """Dependency providers for FastAPI routes."""
-
 from __future__ import annotations
 
-from functools import lru_cache
+from functools import cached_property
+from typing import Annotated
 
-from app.core.config import Settings, get_settings
-from app.repositories.report_repo import ReportRepository
-from app.repositories.work_type_repo import WorkTypeRepository
+from fastapi import Depends, Request
+
+from app.api.schemas import ReportCreate
+from app.application import ReportService, WorkTypeService
+from app.config import Settings
+from app.domain.ports import UtcClock
+from app.infrastructure import InMemoryReportRepository, InMemoryWorkTypeRepository, YandexStorage
 from app.services.bot_service import BotService
-from app.services.report_service import ReportService
-from app.services.storage_service import StorageService
 
 
-@lru_cache
-def get_settings_dep() -> Settings:
-    return get_settings()
+class AppContainer:
+    """Lightweight container to hold shared services for the app lifespan."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+
+    @cached_property
+    def clock(self) -> UtcClock:
+        return UtcClock()
+
+    @cached_property
+    def storage(self) -> YandexStorage:
+        return YandexStorage(self.settings)
+
+    @cached_property
+    def report_repository(self) -> InMemoryReportRepository:
+        return InMemoryReportRepository(limit=self.settings.reports_limit)
+
+    @cached_property
+    def work_type_repository(self) -> InMemoryWorkTypeRepository:
+        return InMemoryWorkTypeRepository()
+
+    @cached_property
+    def report_service(self) -> ReportService:
+        return ReportService(
+            repository=self.report_repository,
+            storage=self.storage,
+            clock=self.clock,
+        )
+
+    @cached_property
+    def work_type_service(self) -> WorkTypeService:
+        return WorkTypeService(self.work_type_repository)
+
+    @cached_property
+    def bot_service(self) -> BotService:
+        return BotService(self.settings)
 
 
-@lru_cache
-def get_work_type_repository() -> WorkTypeRepository:
-    return WorkTypeRepository()
+async def get_container(request: Request) -> AppContainer:
+    return request.app.state.container  # type: ignore[attr-defined]
 
 
-@lru_cache
-def get_report_repository() -> ReportRepository:
-    settings = get_settings_dep()
-    return ReportRepository(limit=settings.reports_limit)
+def get_settings(container: Annotated[AppContainer, Depends(get_container)]) -> Settings:
+    return container.settings
 
 
-@lru_cache
-def get_storage_service() -> StorageService:
-    settings = get_settings_dep()
-    return StorageService(settings)
+def get_report_service(container: Annotated[AppContainer, Depends(get_container)]) -> ReportService:
+    return container.report_service
 
 
-def get_report_service() -> ReportService:
-    return ReportService(get_report_repository(), get_storage_service())
+def get_work_type_service(container: Annotated[AppContainer, Depends(get_container)]) -> WorkTypeService:
+    return container.work_type_service
 
 
-def get_bot_service() -> BotService:
-    return BotService(get_settings_dep())
+def get_bot_service(container: Annotated[AppContainer, Depends(get_container)]) -> BotService:
+    return container.bot_service
+
+
+ReportCreateForm = Annotated[ReportCreate, Depends(ReportCreate.as_form)]

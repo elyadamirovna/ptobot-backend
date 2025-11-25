@@ -1,10 +1,9 @@
 """Root endpoint router."""
-
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from app.models.root import RootInfo
+from app.api.schemas import RootInfo
 
 router = APIRouter()
 
