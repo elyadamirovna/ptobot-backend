@@ -1,76 +1,50 @@
 """Dependency providers for FastAPI routes."""
 from __future__ import annotations
 
-from functools import cached_property
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
 from app.api.schemas import ReportCreate
 from app.application import ReportService, WorkTypeService
-from app.config import Settings
-from app.domain.ports import UtcClock
-from app.infrastructure import InMemoryReportRepository, InMemoryWorkTypeRepository, YandexStorage
-from app.services.bot_service import BotService
+from app.config import Settings, get_settings
+from app.domain.ports import Clock, ReportRepository, StoragePort, UtcClock, WorkTypeRepository
+from app.infrastructure import SqlAlchemyReportRepository, SqlAlchemyWorkTypeRepository, YandexStorage
+from app.infrastructure.database import get_db
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+SessionDep = Annotated[Session, Depends(get_db)]
 
 
-class AppContainer:
-    """Lightweight container to hold shared services for the app lifespan."""
-
-    def __init__(self, settings: Settings) -> None:
-        self.settings = settings
-
-    @cached_property
-    def clock(self) -> UtcClock:
-        return UtcClock()
-
-    @cached_property
-    def storage(self) -> YandexStorage:
-        return YandexStorage(self.settings)
-
-    @cached_property
-    def report_repository(self) -> InMemoryReportRepository:
-        return InMemoryReportRepository(limit=self.settings.reports_limit)
-
-    @cached_property
-    def work_type_repository(self) -> InMemoryWorkTypeRepository:
-        return InMemoryWorkTypeRepository()
-
-    @cached_property
-    def report_service(self) -> ReportService:
-        return ReportService(
-            repository=self.report_repository,
-            storage=self.storage,
-            clock=self.clock,
-        )
-
-    @cached_property
-    def work_type_service(self) -> WorkTypeService:
-        return WorkTypeService(self.work_type_repository)
-
-    @cached_property
-    def bot_service(self) -> BotService:
-        return BotService(self.settings)
+def get_clock() -> Clock:
+    return UtcClock()
 
 
-async def get_container(request: Request) -> AppContainer:
-    return request.app.state.container  # type: ignore[attr-defined]
+def get_storage(settings: SettingsDep) -> StoragePort:
+    return YandexStorage(settings)
 
 
-def get_settings(container: Annotated[AppContainer, Depends(get_container)]) -> Settings:
-    return container.settings
+def get_report_repository(db: SessionDep) -> ReportRepository:
+    return SqlAlchemyReportRepository(db)
 
 
-def get_report_service(container: Annotated[AppContainer, Depends(get_container)]) -> ReportService:
-    return container.report_service
+def get_work_type_repository(db: SessionDep) -> WorkTypeRepository:
+    return SqlAlchemyWorkTypeRepository(db)
 
 
-def get_work_type_service(container: Annotated[AppContainer, Depends(get_container)]) -> WorkTypeService:
-    return container.work_type_service
+def get_report_service(
+    repository: Annotated[ReportRepository, Depends(get_report_repository)],
+    storage: Annotated[StoragePort, Depends(get_storage)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> ReportService:
+    return ReportService(repository=repository, storage=storage, clock=clock)
 
 
-def get_bot_service(container: Annotated[AppContainer, Depends(get_container)]) -> BotService:
-    return container.bot_service
+def get_work_type_service(
+    repository: Annotated[WorkTypeRepository, Depends(get_work_type_repository)],
+) -> WorkTypeService:
+    return WorkTypeService(repository)
 
 
 ReportCreateForm = Annotated[ReportCreate, Depends(ReportCreate.as_form)]

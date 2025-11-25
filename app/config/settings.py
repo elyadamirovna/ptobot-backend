@@ -1,6 +1,7 @@
 """Validated application settings using pydantic-settings."""
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
@@ -21,6 +22,11 @@ class Settings(BaseSettings):
     yc_s3_bucket: str = Field(default="ptobot-assets", min_length=1, alias="YC_S3_BUCKET")
     yc_s3_access_key_id: str = Field(default="", alias="YC_S3_ACCESS_KEY_ID")
     yc_s3_secret_access_key: str = Field(default="", alias="YC_S3_SECRET_ACCESS_KEY")
+
+    database_url: str = Field(
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/ptobot",
+        alias="DATABASE_URL",
+    )
 
     bot_token: Optional[str] = Field(default=None, alias="BOT_TOKEN")
     webapp_url: HttpUrl = Field(default="https://reports-frontend.onrender.com", alias="WEBAPP_URL")
@@ -57,3 +63,10 @@ class Settings(BaseSettings):
 
     def storage_key_prefix(self) -> Path:
         return Path("reports")
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Cached settings instance for use across the application."""
+
+    return Settings()

@@ -6,19 +6,21 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.deps import AppContainer
 from app.api.routers import reports, root, work_types
-from app.config import Settings
+from app.config import get_settings
 from app.core.logging import setup_logging
+from app.infrastructure import ReportModel, WorkTypeModel
+from app.infrastructure.database import Base, engine
+from app.services.bot_service import BotService
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = Settings()
-    app.state.container = AppContainer(settings)
-
-    bot_service = app.state.container.bot_service
+    settings = get_settings()
+    bot_service = BotService(settings)
     setup_logging()
+
+    Base.metadata.create_all(bind=engine)
 
     await bot_service.start(app)
     try:
@@ -28,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    settings = Settings()
+    settings = get_settings()
     app = FastAPI(title=settings.app_title, lifespan=lifespan)
 
     app.add_middleware(
