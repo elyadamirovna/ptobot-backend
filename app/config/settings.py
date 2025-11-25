@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import re
 from pathlib import Path
 from typing import List, Optional
 
@@ -15,7 +16,14 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     app_title: str = Field(default="Ptobot backend")
-    cors_allow_origins: List[str] = Field(default_factory=lambda: ["*"], alias="CORS_ALLOW_ORIGINS")
+    cors_allow_origins: List[str] = Field(
+        default_factory=lambda: [
+            "https://ptobot-frontend.onrender.com",
+            "https://tgapp-web.telegram.org",
+            "https://web.telegram.org",
+        ],
+        alias="CORS_ALLOW_ORIGINS",
+    )
 
     yc_s3_endpoint: HttpUrl = Field(default="https://storage.yandexcloud.net", alias="YC_S3_ENDPOINT")
     yc_s3_region: str = Field(default="ru-central1", alias="YC_S3_REGION")
@@ -39,7 +47,8 @@ class Settings(BaseSettings):
         if isinstance(value, list):
             return value
         if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
+            parts = re.split(r"[\s,]+", value)
+            return [item for item in (part.strip() for part in parts) if item]
         return ["*"]
 
     @field_validator("yc_s3_bucket")
