@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_title, lifespan=lifespan)
     print("DEBUG DATABASE_URL =", settings.database_url, flush=True)
+    logging.getLogger(__name__).info("CORS allow_origins: %s", settings.cors_allow_origins)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allow_origins,
