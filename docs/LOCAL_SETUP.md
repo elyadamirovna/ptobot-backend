@@ -1,11 +1,11 @@
 # Local setup
 
-1. Create a `.env` file next to `app/` and include at least:
-   ```env
-   DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ptobot
-   YC_S3_BUCKET=ptobot-assets
-   YC_S3_ACCESS_KEY_ID=your_key
-   YC_S3_SECRET_ACCESS_KEY=your_secret
+1. Export the required environment variables before running the app:
+   ```bash
+   export DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/ptobot
+   export YC_S3_BUCKET=ptobot-assets
+   export YC_S3_ACCESS_KEY_ID=your_key
+   export YC_S3_SECRET_ACCESS_KEY=your_secret
    ```
 
 2. Install dependencies and set up the database schema:
