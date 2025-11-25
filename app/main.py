@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_title, lifespan=lifespan)
-
+    print("DEBUG DATABASE_URL =", settings.database_url, flush=True)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allow_origins,
