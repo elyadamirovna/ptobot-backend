@@ -23,11 +23,7 @@ class Settings(BaseSettings):
     yc_s3_access_key_id: str = Field(default="", alias="YC_S3_ACCESS_KEY_ID")
     yc_s3_secret_access_key: str = Field(default="", alias="YC_S3_SECRET_ACCESS_KEY")
 
-    database_url: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/ptobot",
-        alias="DATABASE_URL",
-    )
-
+    database_url: str = Field(alias="DATABASE_URL")
     bot_token: Optional[str] = Field(default=None, alias="BOT_TOKEN")
     webapp_url: HttpUrl = Field(default="https://reports-frontend.onrender.com", alias="WEBAPP_URL")
 
