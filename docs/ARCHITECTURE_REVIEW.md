@@ -12,7 +12,7 @@ This document summarizes observed architectural issues in the current backend an
 - **ID handling inconsistencies**: `ReportRepository.next_id()` increments an integer, but `ReportOut.work_type_id` is coerced to `str`, creating inconsistent typing across the API. Filtering uses string equality, which may mismatch if callers send integers.
 - **Resource cleanup risks**: The Telegram bot `start_bot` function creates a bot and dispatcher but the lifecycle management lacks shutdown hooks beyond canceling the polling task. Errors during startup are not surfaced, and cancellation may leave network resources open if `bot.session.close()` is skipped due to exceptions.
 - **Logging and observability gaps**: The project uses only basic logging without structured fields, correlation IDs, or request/response logging. Storage and bot operations lack diagnostics and metrics.
-- **Configuration rigidity**: Settings are simple attributes without validation, defaults, or support for `.env` files. Credentials are optional, but missing values are not checked before attempting uploads, leading to runtime failures.
+- **Configuration rigidity**: Settings are simple attributes without validation or defaults. Credentials are optional, but missing values are not checked before attempting uploads, leading to runtime failures.
 - **Testability concerns**: Heavy use of singletons via `@lru_cache` and direct construction of boto3 clients makes unit testing difficult. There are no interfaces for storage or bot lifecycles to allow mocking.
 
 ## Recommended Architecture
@@ -23,7 +23,7 @@ This document summarizes observed architectural issues in the current backend an
 - **Service boundaries**: Keep `ReportService` focused on orchestration by depending on interfaces (`ReportRepository`, `StoragePort`, `Clock`). Move storage-specific logic to an adapter (e.g., `YandexStorage`). Generate IDs at the repository/database level and expose timestamps from a clock abstraction for deterministic tests.
 - **Dependency injection**: Replace global `@lru_cache` factories with a lightweight DI container or FastAPI dependencies that yield per-request resources (e.g., `get_db_session`). Use startup/shutdown events to initialize shared resources like bot runners or S3 clients while keeping them injectable for tests.
 - **Bot lifecycle**: Encapsulate bot startup in a dedicated adapter that supports graceful shutdown and health checks. Run polling in a supervised background task with error handling and configurable backoff. Surface startup errors to fail fast.
-- **Configuration management**: Use `pydantic-settings` to validate environment variables, support `.env` files, and provide clear error messages when required secrets are missing. Group settings by concern (app, storage, bot, database, CORS).
+- **Configuration management**: Use `pydantic-settings` to validate environment variables and provide clear error messages when required secrets are missing. Group settings by concern (app, storage, bot, database, CORS).
 - **Observability**: Introduce structured logging (JSON), request IDs, and middleware for HTTP access logs. Add metrics (e.g., Prometheus) for request latency, upload durations, and bot polling status. Centralize logging configuration per module and environment.
 - **Testing strategy**: Add unit tests for services using mocked ports, and integration tests for API endpoints with a temporary database. Provide factory fixtures for repositories and storage adapters.
 
