@@ -10,20 +10,20 @@ from pydantic import Field, HttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+DEFAULT_CORS_ORIGINS = [
+    "https://ptobot-frontend.onrender.com",
+    "https://tgapp-web.telegram.org",
+    "https://web.telegram.org",
+]
+
+
 class Settings(BaseSettings):
     """Container for strongly validated application settings."""
 
     model_config = SettingsConfigDict(extra="ignore")
 
     app_title: str = Field(default="Ptobot backend")
-    cors_allow_origins: List[str] = Field(
-        default_factory=lambda: [
-            "https://ptobot-frontend.onrender.com",
-            "https://tgapp-web.telegram.org",
-            "https://web.telegram.org",
-        ],
-        alias="CORS_ALLOW_ORIGINS",
-    )
+    cors_allow_origins: List[str] = Field(default_factory=lambda: DEFAULT_CORS_ORIGINS.copy(), alias="CORS_ALLOW_ORIGINS")
 
     yc_s3_endpoint: HttpUrl = Field(default="https://storage.yandexcloud.net", alias="YC_S3_ENDPOINT")
     yc_s3_region: str = Field(default="ru-central1", alias="YC_S3_REGION")
@@ -44,12 +44,18 @@ class Settings(BaseSettings):
     @field_validator("cors_allow_origins", mode="before")
     @classmethod
     def split_origins(cls, value: str | List[str]) -> List[str]:
+        if value is None:
+            return DEFAULT_CORS_ORIGINS.copy()
+
         if isinstance(value, list):
-            return value
+            return value or DEFAULT_CORS_ORIGINS.copy()
+
         if isinstance(value, str):
             parts = re.split(r"[\s,]+", value)
-            return [item for item in (part.strip() for part in parts) if item]
-        return ["*"]
+            filtered = [item for item in (part.strip() for part in parts) if item]
+            return filtered or DEFAULT_CORS_ORIGINS.copy()
+
+        return DEFAULT_CORS_ORIGINS.copy()
 
     @field_validator("yc_s3_bucket")
     @classmethod
