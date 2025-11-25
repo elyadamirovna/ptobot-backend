@@ -63,3 +63,12 @@ This document summarizes observed architectural issues in the current backend an
    - Add API tests using FastAPI `TestClient` and a temporary database; cover upload flow with a fake storage adapter.
 
 Implementing these changes will produce a modular, testable backend that can scale, provide stronger guarantees around data persistence and resource usage, and support future features with minimal coupling.
+
+## Implemented Changes (current iteration)
+- Added validated configuration via `pydantic-settings` with bucket/credential checks and CORS parsing.
+- Introduced domain entities and ports for reports, work types, storage, and clocks with async-friendly contracts.
+- Refactored application services to consume DTOs and ports, isolating storage uploads from orchestration logic.
+- Added async-safe in-memory repositories for development with ID generation locking.
+- Replaced storage integration with an async-friendly Yandex adapter that wraps boto3 in `asyncio.to_thread` and uses retries/timeouts.
+- Restructured FastAPI dependencies around a lightweight container initialized in the app lifespan instead of global singletons.
+- Separated API schemas for input/output with validation helpers for multipart form submissions.

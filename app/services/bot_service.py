@@ -1,5 +1,4 @@
 """Telegram bot launcher and lifecycle management."""
-
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +11,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 from fastapi import FastAPI
 
-from app.core.config import Settings
+from app.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +45,12 @@ async def start_bot(bot_token: str, webapp_url: str) -> None:
     logger.info("Starting Telegram bot")
     try:
         await dp.start_polling(bot)
+    except Exception:
+        logger.exception("Bot polling failed")
+        raise
     finally:
-        await bot.session.close()
+        with contextlib.suppress(Exception):
+            await bot.session.close()
         logger.info("Telegram bot stopped")
 
 
@@ -65,7 +68,7 @@ class BotService:
             setattr(app.state, self._task_attr, None)
             return
 
-        task = asyncio.create_task(start_bot(bot_token, self._settings.webapp_url))
+        task = asyncio.create_task(start_bot(bot_token, str(self._settings.webapp_url)))
         setattr(app.state, self._task_attr, task)
 
     async def stop(self, app: FastAPI) -> None:
@@ -83,7 +86,7 @@ async def main() -> None:
     if not settings.bot_token:
         raise RuntimeError("BOT_TOKEN is required to start the bot")
 
-    await start_bot(settings.bot_token, settings.webapp_url)
+    await start_bot(settings.bot_token, str(settings.webapp_url))
 
 
 if __name__ == "__main__":
