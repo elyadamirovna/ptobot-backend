@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 from functools import lru_cache
+import json
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
-from pydantic import Field, HttpUrl, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, HttpUrl, field_validator, model_validator
+from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
 
 
 DEFAULT_CORS_ORIGINS = [
@@ -50,18 +51,51 @@ class Settings(BaseSettings):
     def has_storage_credentials(self) -> bool:
         return bool(self.yc_s3_access_key_id and self.yc_s3_secret_access_key)
 
+    @staticmethod
+    def _normalize_origins(value: str | Iterable[str] | None) -> List[str]:
+        if value is None:
+            return DEFAULT_CORS_ORIGINS.copy()
+
+        if isinstance(value, str):
+            parts = re.split(r"[\s,]+", value)
+        else:
+            parts = list(value)
+
+        filtered = [item for item in (str(part).strip() for part in parts) if item]
+        return filtered or DEFAULT_CORS_ORIGINS.copy()
+
     @field_validator("cors_allow_origins", mode="before")
     @classmethod
     def split_origins(cls, value: str | List[str]) -> List[str]:
-        if value is None:
-            return DEFAULT_CORS_ORIGINS.copy()
-        if isinstance(value, list):
-            return value or DEFAULT_CORS_ORIGINS.copy()
-        if isinstance(value, str):
-            parts = re.split(r"[\s,]+", value)
-            filtered = [item for item in (part.strip() for part in parts) if item]
-            return filtered or DEFAULT_CORS_ORIGINS.copy()
-        return DEFAULT_CORS_ORIGINS.copy()
+        return cls._normalize_origins(value)
+
+    @model_validator(mode="after")
+    def ensure_origins_list(self) -> "Settings":
+        self.cors_allow_origins = self._normalize_origins(self.cors_allow_origins)
+        return self
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type["Settings"],
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        class LenientEnvSettingsSource(EnvSettingsSource):
+            def decode_complex_value(self, field_name, field, value):
+                try:
+                    return super().decode_complex_value(field_name, field, value)
+                except (json.JSONDecodeError, ValueError):
+                    return value
+
+        return (
+            init_settings,
+            dotenv_settings,
+            LenientEnvSettingsSource(settings_cls),
+            file_secret_settings,
+        )
 
     @field_validator("yc_s3_bucket")
     @classmethod
@@ -93,7 +127,12 @@ def get_settings() -> Settings:
     settings = Settings()
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"CORS_ALLOW_ORIGINS parsed as: {settings.cors_allow_origins}")
+    assert isinstance(settings.cors_allow_origins, list)
+    logger.info(
+        "CORS_ALLOW_ORIGINS parsed as list with %d entries: %s",
+        len(settings.cors_allow_origins),
+        settings.cors_allow_origins,
+    )
     return settings
 
 
