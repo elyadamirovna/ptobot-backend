@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     database_url: str = Field(alias="DATABASE_URL")
     bot_token: Optional[str] = Field(default=None, alias="BOT_TOKEN")
     webapp_url: HttpUrl = Field(default="https://reports-frontend.onrender.com", alias="WEBAPP_URL")
+    webhook_path: str = Field(default="/bot", alias="WEBHOOK_PATH")
+    webhook_secret_token: Optional[str] = Field(default=None, alias="WEBHOOK_SECRET_TOKEN")
 
     reports_limit: int = Field(default=500, ge=1, alias="REPORTS_LIMIT")
 
@@ -74,6 +76,12 @@ class Settings(BaseSettings):
         if value is None:
             return ""
         return value
+
+    @field_validator("webhook_path")
+    @classmethod
+    def ensure_webhook_path(cls, value: str) -> str:
+        value = value or "/bot"
+        return value if value.startswith("/") else f"/{value}"
 
     def storage_key_prefix(self) -> Path:
         return Path("reports")
