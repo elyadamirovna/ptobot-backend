@@ -1,15 +1,14 @@
 """Telegram bot launcher and lifecycle management."""
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 from typing import Optional
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
-from fastapi import FastAPI
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, Update, WebAppInfo
+from fastapi import FastAPI, HTTPException, Request
 
 from app.config import Settings
 
@@ -36,58 +35,62 @@ def _build_dispatcher(webapp_url: str) -> Dispatcher:
     return dp
 
 
-async def start_bot(bot_token: str, webapp_url: str) -> None:
-    """Start the Telegram bot via long polling."""
-
-    bot = Bot(token=bot_token)
-    dp = _build_dispatcher(webapp_url)
-
-    logger.info("Starting Telegram bot")
-    try:
-        await dp.start_polling(bot)
-    except Exception:
-        logger.exception("Bot polling failed")
-        raise
-    finally:
-        with contextlib.suppress(Exception):
-            await bot.session.close()
-        logger.info("Telegram bot stopped")
-
-
 class BotService:
     """Manages Telegram bot lifecycle for FastAPI startup/shutdown."""
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._task_attr = "bot_task"
+        self._bot: Optional[Bot] = None
+        self._dispatcher: Optional[Dispatcher] = None
+
+    def _build_webhook_url(self) -> str:
+        base_url = str(self._settings.webapp_url).rstrip("/")
+        return f"{base_url}{self._settings.webhook_path}"
+
+    def _register_webhook_route(self, app: FastAPI) -> None:
+        webhook_secret = self._settings.webhook_secret_token
+
+        @app.post(self._settings.webhook_path)
+        async def telegram_webhook(update: Update, request: Request) -> dict[str, bool]:
+            if webhook_secret:
+                secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+                if secret_header != webhook_secret:
+                    raise HTTPException(status_code=403, detail="Invalid secret token")
+
+            if not self._dispatcher or not self._bot:
+                raise HTTPException(status_code=503, detail="Bot is not ready")
+
+            await self._dispatcher.feed_update(self._bot, update)
+            return {"ok": True}
 
     async def start(self, app: FastAPI) -> None:
         bot_token = self._settings.bot_token
         if not bot_token:
             logger.warning("BOT_TOKEN is not set, Telegram bot will not be started")
-            setattr(app.state, self._task_attr, None)
             return
 
-        task = asyncio.create_task(start_bot(bot_token, str(self._settings.webapp_url)))
-        setattr(app.state, self._task_attr, task)
+        self._bot = Bot(token=bot_token)
+        self._dispatcher = _build_dispatcher(str(self._settings.webapp_url))
+        webhook_url = self._build_webhook_url()
 
-    async def stop(self, app: FastAPI) -> None:
-        bot_task: Optional[asyncio.Task] = getattr(app.state, self._task_attr, None)
-        if not bot_task:
+        await self._bot.set_webhook(
+            url=webhook_url,
+            secret_token=self._settings.webhook_secret_token,
+        )
+        logger.info("Webhook set to %s", webhook_url)
+
+        self._register_webhook_route(app)
+
+    async def stop(self, app: FastAPI) -> None:  # noqa: ARG002 - part of FastAPI lifecycle
+        if not self._bot:
             return
 
-        bot_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await bot_task
+        with contextlib.suppress(Exception):
+            await self._bot.delete_webhook(drop_pending_updates=True)
+            logger.info("Webhook deleted")
 
+        with contextlib.suppress(Exception):
+            await self._bot.session.close()
 
-async def main() -> None:
-    settings = Settings()
-    if not settings.bot_token:
-        raise RuntimeError("BOT_TOKEN is required to start the bot")
-
-    await start_bot(settings.bot_token, str(settings.webapp_url))
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        self._bot = None
+        self._dispatcher = None
