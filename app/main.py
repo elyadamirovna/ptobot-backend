@@ -10,8 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import reports, root, work_types
 from app.config import get_settings
 from app.core.logging import setup_logging
-from app.infrastructure import ReportModel, WorkTypeModel
-from app.infrastructure.database import Base, engine
 from app.services.bot_service import BotService
 
 
@@ -20,8 +18,6 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     bot_service = BotService(settings)
     setup_logging()
-
-    Base.metadata.create_all(bind=engine)
 
     await bot_service.start(app)
     try:
