@@ -76,8 +76,12 @@ class Settings(BaseSettings):
         return Path("reports")
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    """Cached settings instance for use across the application."""
+    @lru_cache(maxsize=1)
+    def get_settings() -> Settings:
+        """Cached settings instance for use across the application."""
+        settings = Settings()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"CORS_ALLOW_ORIGINS parsed as: {settings.cors_allow_origins}")
+        return settings
 
-    return Settings()
