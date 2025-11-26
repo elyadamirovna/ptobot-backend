@@ -20,7 +20,11 @@ DEFAULT_CORS_ORIGINS = [
 class Settings(BaseSettings):
     """Container for strongly validated application settings."""
 
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(
+        populate_by_name=True,
+        str_strip_whitespace=True,
+        extra="ignore",
+    )
 
     app_title: str = Field(default="Ptobot backend")
     cors_allow_origins: List[str] = Field(
