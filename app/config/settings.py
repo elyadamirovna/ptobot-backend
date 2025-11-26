@@ -1,6 +1,6 @@
-"""Validated application settings using pydantic-settings."""
-from __future__ import annotations
+# settings.py
 
+from __future__ import annotations
 from functools import lru_cache
 import re
 from pathlib import Path
@@ -23,7 +23,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
     app_title: str = Field(default="Ptobot backend")
-    cors_allow_origins: List[str] = Field(default_factory=lambda: DEFAULT_CORS_ORIGINS.copy(), alias="CORS_ALLOW_ORIGINS")
+    cors_allow_origins: List[str] = Field(
+        default_factory=lambda: DEFAULT_CORS_ORIGINS.copy(),
+        alias="CORS_ALLOW_ORIGINS"
+    )
 
     yc_s3_endpoint: HttpUrl = Field(default="https://storage.yandexcloud.net", alias="YC_S3_ENDPOINT")
     yc_s3_region: str = Field(default="ru-central1", alias="YC_S3_REGION")
@@ -46,15 +49,12 @@ class Settings(BaseSettings):
     def split_origins(cls, value: str | List[str]) -> List[str]:
         if value is None:
             return DEFAULT_CORS_ORIGINS.copy()
-
         if isinstance(value, list):
             return value or DEFAULT_CORS_ORIGINS.copy()
-
         if isinstance(value, str):
             parts = re.split(r"[\s,]+", value)
             filtered = [item for item in (part.strip() for part in parts) if item]
             return filtered or DEFAULT_CORS_ORIGINS.copy()
-
         return DEFAULT_CORS_ORIGINS.copy()
 
     @field_validator("yc_s3_bucket")
@@ -67,7 +67,6 @@ class Settings(BaseSettings):
     @field_validator("yc_s3_access_key_id", "yc_s3_secret_access_key")
     @classmethod
     def validate_credentials(cls, value: str, info):
-        # Allow empty values but warn early if one is set without the other
         if value is None:
             return ""
         return value
@@ -76,12 +75,15 @@ class Settings(BaseSettings):
         return Path("reports")
 
 
-    @lru_cache(maxsize=1)
-    def get_settings() -> Settings:
-        """Cached settings instance for use across the application."""
-        settings = Settings()
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"CORS_ALLOW_ORIGINS parsed as: {settings.cors_allow_origins}")
-        return settings
+# ⬇️ Теперь функция get_settings вне класса
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    settings = Settings()
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"CORS_ALLOW_ORIGINS parsed as: {settings.cors_allow_origins}")
+    return settings
 
+
+# ⬇️ Убедись, что ты экспортируешь нужные объекты
+__all__ = ["Settings", "get_settings"]
