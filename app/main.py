@@ -1,7 +1,6 @@
 """FastAPI application entry point."""
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 import logging
 
 from fastapi import FastAPI
@@ -10,25 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import reports, root, work_types
 from app.config import get_settings
 from app.core.logging import setup_logging
-from app.services.bot_service import BotService
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
-    bot_service = BotService(settings)
-    setup_logging()
-
-    await bot_service.start(app)
-    try:
-        yield
-    finally:
-        await bot_service.stop(app)
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title=settings.app_title, lifespan=lifespan)
+    setup_logging()
+    app = FastAPI(title=settings.app_title)
     print("DEBUG DATABASE_URL =", settings.database_url, flush=True)
     logging.getLogger(__name__).info("CORS allow_origins: %s", settings.cors_allow_origins)
     app.add_middleware(
