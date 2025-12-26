@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Iterable, List
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, HttpUrl, field_validator, model_validator
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
 
 
