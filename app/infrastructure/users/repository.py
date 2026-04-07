@@ -1,0 +1,45 @@
+"""SQLAlchemy implementation of UserRepository."""
+from __future__ import annotations
+
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from app.domain.entities.user import User
+from app.infrastructure.users.models import UserModel
+
+
+class SqlAlchemyUserRepository:
+    def __init__(self, db: Session) -> None:
+        self._db = db
+
+    def get_by_phone(self, phone: str) -> Optional[User]:
+        row = self._db.query(UserModel).filter(UserModel.phone == phone).first()
+        if row is None:
+            return None
+        return self._to_entity(row)
+
+    def add(self, user: User) -> User:
+        row = UserModel(
+            id=user.id,
+            name=user.name,
+            phone=user.phone,
+            hashed_password=user.hashed_password,
+            role=user.role,
+            is_active=user.is_active,
+        )
+        self._db.add(row)
+        self._db.commit()
+        self._db.refresh(row)
+        return self._to_entity(row)
+
+    @staticmethod
+    def _to_entity(row: UserModel) -> User:
+        return User(
+            id=row.id,
+            name=row.name,
+            phone=row.phone,
+            hashed_password=row.hashed_password,
+            role=row.role,
+            is_active=row.is_active,
+        )

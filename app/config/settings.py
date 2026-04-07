@@ -23,6 +23,8 @@ class Settings(BaseSettings):
         populate_by_name=True,
         str_strip_whitespace=True,
         extra="ignore",
+        env_file=".env",
+        env_file_encoding="utf-8",
     )
 
     app_title: str = Field(default="Ptobot backend")
@@ -39,6 +41,11 @@ class Settings(BaseSettings):
 
     database_url: str = Field(alias="DATABASE_URL")
     reports_limit: int = Field(default=500, ge=1, alias="REPORTS_LIMIT")
+
+    # JWT — обязательный секрет, генерируй через: openssl rand -hex 32
+    jwt_secret: str = Field(alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expires_minutes: int = Field(default=60 * 24 * 7, alias="JWT_EXPIRES_MINUTES")
 
     @property
     def has_storage_credentials(self) -> bool:
