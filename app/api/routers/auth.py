@@ -48,6 +48,7 @@ def login(
         user=UserOut(
             id=result.user.id,
             name=result.user.name,
+            company_name=result.user.company_name,
             phone=result.user.phone,
             role=result.user.role,
         ),
@@ -59,6 +60,7 @@ def me(current_user: Annotated[User, Depends(get_current_user)]) -> UserOut:
     return UserOut(
         id=current_user.id,
         name=current_user.name,
+        company_name=current_user.company_name,
         phone=current_user.phone,
         role=current_user.role,
     )

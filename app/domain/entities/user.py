@@ -8,6 +8,7 @@ from dataclasses import dataclass
 class User:
     id: str
     name: str
+    company_name: str | None
     phone: str
     hashed_password: str
     role: str = "contractor"

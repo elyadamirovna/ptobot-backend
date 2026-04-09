@@ -12,6 +12,7 @@ class UserModel(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="contractor")

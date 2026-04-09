@@ -12,6 +12,7 @@ class LoginRequest(BaseModel):
 class UserOut(BaseModel):
     id: str
     name: str
+    company_name: str | None = None
     phone: str
     role: str
 

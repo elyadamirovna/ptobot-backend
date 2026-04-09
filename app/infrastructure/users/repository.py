@@ -29,6 +29,7 @@ class SqlAlchemyUserRepository:
         row = UserModel(
             id=user.id,
             name=user.name,
+            company_name=user.company_name,
             phone=user.phone,
             hashed_password=user.hashed_password,
             role=user.role,
@@ -44,6 +45,7 @@ class SqlAlchemyUserRepository:
         return User(
             id=row.id,
             name=row.name,
+            company_name=row.company_name,
             phone=row.phone,
             hashed_password=row.hashed_password,
             role=row.role,

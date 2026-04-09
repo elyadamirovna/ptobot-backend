@@ -21,9 +21,9 @@ from app.infrastructure.database import SessionLocal
 from app.infrastructure.users.models import UserModel
 
 DEMO_USERS = [
-    {"phone": "+7 (900) 000-00-00", "name": "Начальник ПТО", "password": "demo", "role": "admin"},
-    {"phone": "+7 (900) 000-00-01", "name": "Алексей", "password": "demo", "role": "contractor"},
-    {"phone": "+7 (900) 000-00-02", "name": "Никита",  "password": "demo", "role": "contractor"},
+    {"phone": "+7 (900) 000-00-00", "name": "Начальник ПТО", "company_name": None, "password": "demo", "role": "admin"},
+    {"phone": "+7 (900) 000-00-01", "name": "Алексей", "company_name": None, "password": "demo", "role": "contractor"},
+    {"phone": "+7 (900) 000-00-02", "name": "Никита",  "company_name": None, "password": "demo", "role": "contractor"},
 ]
 
 
@@ -39,6 +39,7 @@ def seed() -> None:
             row = UserModel(
                 id=str(uuid.uuid4()),
                 name=u["name"],
+                company_name=u["company_name"],
                 phone=u["phone"],
                 hashed_password=hash_password(u["password"]),
                 role=u["role"],
