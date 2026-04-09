@@ -20,7 +20,9 @@ class SqlAlchemyReportRepository(ReportRepository):
         model = ReportModel(
             id=report.id,
             user_id=report.user_id,
+            site_id=report.site_id,
             work_type_id=report.work_type_id,
+            report_date=report.report_date,
             description=report.description,
             people=report.people,
             volume=report.volume,
@@ -33,8 +35,16 @@ class SqlAlchemyReportRepository(ReportRepository):
         self._session.refresh(model)
         return self._to_entity(model)
 
-    async def list(self, *, user_id: str | None = None, work_type_id: str | None = None) -> Iterable[Report]:
+    async def list(
+        self,
+        *,
+        site_id: str | None = None,
+        user_id: str | None = None,
+        work_type_id: str | None = None,
+    ) -> Iterable[Report]:
         stmt = select(ReportModel)
+        if site_id is not None:
+            stmt = stmt.where(ReportModel.site_id == site_id)
         if user_id is not None:
             stmt = stmt.where(ReportModel.user_id == user_id)
         if work_type_id is not None:
@@ -52,7 +62,9 @@ class SqlAlchemyReportRepository(ReportRepository):
         return Report(
             id=model.id,
             user_id=model.user_id,
+            site_id=model.site_id or "",
             work_type_id=model.work_type_id,
+            report_date=model.report_date,
             description=model.description,
             people=model.people,
             volume=model.volume,

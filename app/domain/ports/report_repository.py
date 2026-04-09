@@ -11,7 +11,13 @@ class ReportRepository(Protocol):
     async def add(self, report: Report) -> Report:
         ...
 
-    async def list(self, *, user_id: str | None = None, work_type_id: str | None = None) -> Iterable[Report]:
+    async def list(
+        self,
+        *,
+        site_id: str | None = None,
+        user_id: str | None = None,
+        work_type_id: str | None = None,
+    ) -> Iterable[Report]:
         ...
 
     async def next_id(self) -> str:

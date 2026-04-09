@@ -6,9 +6,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.security import get_current_user
 from app.api.schemas.auth import LoginRequest, LoginResponse, UserOut
 from app.application.auth import AuthService, InvalidCredentialsError
 from app.config import Settings, get_settings
+from app.domain.entities import User
 from app.infrastructure.database import get_db
 from app.infrastructure.users import SqlAlchemyUserRepository
 
@@ -49,4 +51,14 @@ def login(
             phone=result.user.phone,
             role=result.user.role,
         ),
+    )
+
+
+@router.get("/me", response_model=UserOut)
+def me(current_user: Annotated[User, Depends(get_current_user)]) -> UserOut:
+    return UserOut(
+        id=current_user.id,
+        name=current_user.name,
+        phone=current_user.phone,
+        role=current_user.role,
     )

@@ -4,6 +4,7 @@ Run once after alembic upgrade:
     python -m scripts.seed_users
 
 Users created:
+    +7 (900) 000-00-00 / demo  → Начальник ПТО (admin)
     +7 (900) 000-00-01 / demo  → Алексей (contractor)
     +7 (900) 000-00-02 / demo  → Никита  (contractor)
 """
@@ -20,6 +21,7 @@ from app.infrastructure.database import SessionLocal
 from app.infrastructure.users.models import UserModel
 
 DEMO_USERS = [
+    {"phone": "+7 (900) 000-00-00", "name": "Начальник ПТО", "password": "demo", "role": "admin"},
     {"phone": "+7 (900) 000-00-01", "name": "Алексей", "password": "demo", "role": "contractor"},
     {"phone": "+7 (900) 000-00-02", "name": "Никита",  "password": "demo", "role": "contractor"},
 ]

@@ -8,6 +8,9 @@ from app.domain.entities.user import User
 
 @runtime_checkable
 class UserRepository(Protocol):
+    def get_by_id(self, user_id: str) -> Optional[User]:
+        ...
+
     def get_by_phone(self, phone: str) -> Optional[User]:
         ...
 

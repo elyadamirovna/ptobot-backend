@@ -7,10 +7,16 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ReportCreate
-from app.application import ReportService, WorkTypeService
+from app.application import ReportService, SiteService, WorkTypeService
 from app.config import Settings, get_settings
-from app.domain.ports import Clock, ReportRepository, StoragePort, UtcClock, WorkTypeRepository
-from app.infrastructure import SqlAlchemyReportRepository, SqlAlchemyWorkTypeRepository, YandexStorage
+from app.domain.ports import Clock, ReportRepository, SiteRepository, StoragePort, UtcClock, UserRepository, WorkTypeRepository
+from app.infrastructure import (
+    SqlAlchemyReportRepository,
+    SqlAlchemySiteRepository,
+    SqlAlchemyUserRepository,
+    SqlAlchemyWorkTypeRepository,
+    YandexStorage,
+)
 from app.infrastructure.database import get_db
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -29,6 +35,14 @@ def get_report_repository(db: SessionDep) -> ReportRepository:
     return SqlAlchemyReportRepository(db)
 
 
+def get_site_repository(db: SessionDep) -> SiteRepository:
+    return SqlAlchemySiteRepository(db)
+
+
+def get_user_repository(db: SessionDep) -> UserRepository:
+    return SqlAlchemyUserRepository(db)
+
+
 def get_work_type_repository(db: SessionDep) -> WorkTypeRepository:
     return SqlAlchemyWorkTypeRepository(db)
 
@@ -45,6 +59,12 @@ def get_work_type_service(
     repository: Annotated[WorkTypeRepository, Depends(get_work_type_repository)],
 ) -> WorkTypeService:
     return WorkTypeService(repository)
+
+
+def get_site_service(
+    repository: Annotated[SiteRepository, Depends(get_site_repository)],
+) -> SiteService:
+    return SiteService(repository)
 
 
 ReportCreateForm = Annotated[ReportCreate, Depends(ReportCreate.as_form)]

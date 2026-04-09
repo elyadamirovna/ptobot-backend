@@ -29,7 +29,9 @@ class ReportService:
         report = Report(
             id=report_id,
             user_id=payload.user_id,
+            site_id=payload.site_id,
             work_type_id=payload.work_type_id,
+            report_date=payload.report_date,
             description=payload.description,
             people=payload.people,
             volume=payload.volume,
@@ -40,5 +42,11 @@ class ReportService:
         await self._repository.add(report)
         return report
 
-    async def list_reports(self, *, user_id: str | None, work_type_id: str | None) -> Iterable[Report]:
-        return await self._repository.list(user_id=user_id, work_type_id=work_type_id)
+    async def list_reports(
+        self,
+        *,
+        site_id: str | None,
+        user_id: str | None,
+        work_type_id: str | None,
+    ) -> Iterable[Report]:
+        return await self._repository.list(site_id=site_id, user_id=user_id, work_type_id=work_type_id)

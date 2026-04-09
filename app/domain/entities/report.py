@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import List
 
 
@@ -10,7 +10,9 @@ from typing import List
 class Report:
     id: str
     user_id: str
+    site_id: str
     work_type_id: str
+    report_date: date
     description: str
     people: str
     volume: str

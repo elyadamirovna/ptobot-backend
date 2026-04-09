@@ -13,6 +13,12 @@ class SqlAlchemyUserRepository:
     def __init__(self, db: Session) -> None:
         self._db = db
 
+    def get_by_id(self, user_id: str) -> Optional[User]:
+        row = self._db.query(UserModel).filter(UserModel.id == user_id).first()
+        if row is None:
+            return None
+        return self._to_entity(row)
+
     def get_by_phone(self, phone: str) -> Optional[User]:
         row = self._db.query(UserModel).filter(UserModel.phone == phone).first()
         if row is None:
