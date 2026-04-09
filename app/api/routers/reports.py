@@ -5,14 +5,11 @@ from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
-from app.api.deps import ReportCreateForm, get_report_service
+from app.api.deps import ReportCreateForm, get_report_service, get_site_service
 from app.api.schemas import ReportRead
 from app.api.security import get_current_user
-from app.application import ReportCreateCommand, ReportService
+from app.application import ReportCreateCommand, ReportService, SiteService
 from app.domain.entities import User
-from app.infrastructure.database import get_db
-from app.infrastructure.sites import SqlAlchemySiteRepository
-from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -21,7 +18,7 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 async def create_report(
     payload: ReportCreateForm,
     current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    site_service: Annotated[SiteService, Depends(get_site_service)],
     photos: List[UploadFile] = File(..., description="List of photo files", min_items=1),
     report_service: ReportService = Depends(get_report_service),
 ) -> ReportRead:
@@ -31,17 +28,7 @@ async def create_report(
             detail="Отправка отчётов доступна только подрядчикам",
         )
 
-    site = SqlAlchemySiteRepository(db).get_by_id(payload.site_id)
-    if site is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Объект не найден",
-        )
-    if site.contractor_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Нет доступа к выбранному объекту",
-        )
+    site_service.get_site_for_user(site_id=payload.site_id, user=current_user)
 
     command = ReportCreateCommand(user_id=current_user.id, **payload.model_dump())
     report = await report_service.create_report(command, photos)

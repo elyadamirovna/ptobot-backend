@@ -1,14 +1,15 @@
 """Routes for construction sites."""
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import get_site_service
-from app.api.schemas import SiteRead
+from app.api.deps import get_report_history_service, get_site_service
+from app.api.schemas import SiteRead, SiteReportHistoryItemRead
 from app.api.security import get_current_user
-from app.application import SiteService
+from app.application import ReportHistoryService, SiteService
 from app.domain.entities import User
 
 router = APIRouter(prefix="/sites", tags=["sites"])
@@ -21,3 +22,24 @@ def list_sites(
 ) -> List[SiteRead]:
     sites = service.list_sites_for_user(current_user)
     return [SiteRead.from_entity(site) for site in sites]
+
+
+@router.get("/{site_id}/reports", response_model=List[SiteReportHistoryItemRead])
+async def list_site_reports(
+    site_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    history_service: Annotated[ReportHistoryService, Depends(get_report_history_service)],
+    date_from: date | None = Query(default=None),
+    date_to: date | None = Query(default=None),
+    work_type_id: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> List[SiteReportHistoryItemRead]:
+    items = await history_service.get_site_report_history(
+        user=current_user,
+        site_id=site_id,
+        date_from=date_from,
+        date_to=date_to,
+        work_type_id=work_type_id,
+        limit=limit,
+    )
+    return [SiteReportHistoryItemRead.from_entity(item) for item in items]

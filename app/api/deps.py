@@ -7,7 +7,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ReportCreate
-from app.application import ReportService, SiteService, WorkTypeService
+from app.application import ReportHistoryService, ReportService, SiteService, WorkTypeService
 from app.config import Settings, get_settings
 from app.domain.ports import Clock, ReportRepository, SiteRepository, StoragePort, UtcClock, UserRepository, WorkTypeRepository
 from app.infrastructure import (
@@ -53,6 +53,13 @@ def get_report_service(
     clock: Annotated[Clock, Depends(get_clock)],
 ) -> ReportService:
     return ReportService(repository=repository, storage=storage, clock=clock)
+
+
+def get_report_history_service(
+    repository: Annotated[ReportRepository, Depends(get_report_repository)],
+    site_service: Annotated[SiteService, Depends(get_site_service)],
+) -> ReportHistoryService:
+    return ReportHistoryService(repository=repository, site_service=site_service)
 
 
 def get_work_type_service(
