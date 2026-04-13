@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 
 from app.api.deps import ReportCreateForm, get_report_service, get_site_service
 from app.api.schemas import ReportRead, ReportUpdate
@@ -79,3 +79,13 @@ async def update_report(
         new_photos=photos,
     )
     return ReportRead.from_entity(report)
+
+
+@router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_report(
+    report_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    report_service: ReportService = Depends(get_report_service),
+) -> Response:
+    await report_service.delete_report(report_id=report_id, user=current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

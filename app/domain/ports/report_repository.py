@@ -39,3 +39,6 @@ class ReportRepository(Protocol):
 
     async def update(self, report: Report) -> Report:
         ...
+
+    async def delete(self, report_id: str) -> bool:
+        ...

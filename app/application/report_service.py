@@ -124,3 +124,21 @@ class ReportService:
             photo_urls=[url for url in existing.photo_urls if url in keep_set] + appended_urls,
         )
         return await self._repository.update(updated)
+
+    async def delete_report(self, *, report_id: str, user: User) -> None:
+        if user.role != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Удаление отчётов доступно только администратору",
+            )
+
+        existing = await self._repository.get_by_id(report_id)
+        if existing is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Отчёт не найден")
+
+        for photo_url in existing.photo_urls:
+            await self._storage.delete(photo_url)
+
+        deleted = await self._repository.delete(report_id)
+        if not deleted:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Отчёт не найден")

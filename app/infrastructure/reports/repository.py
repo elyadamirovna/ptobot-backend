@@ -117,6 +117,15 @@ class SqlAlchemyReportRepository(ReportRepository):
         self._session.refresh(model)
         return self._to_entity(model)
 
+    async def delete(self, report_id: str) -> bool:
+        model = self._session.get(ReportModel, report_id)
+        if model is None:
+            return False
+
+        self._session.delete(model)
+        self._session.commit()
+        return True
+
     @staticmethod
     def _to_entity(model: ReportModel) -> Report:
         return Report(
