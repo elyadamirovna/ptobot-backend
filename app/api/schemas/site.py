@@ -42,6 +42,7 @@ class SiteRead(BaseModel):
     pto_engineer_id: str | None = None
     pto_engineer_name: str | None = None
     last_report_date: date | None = None
+    recent_report_dates: list[date] = []
     has_today_report: bool = False
     status: str
 
@@ -65,6 +66,7 @@ class SiteRead(BaseModel):
             pto_engineer_id=site.pto_engineer_id,
             pto_engineer_name=site.pto_engineer_name,
             last_report_date=site.last_report_date,
+            recent_report_dates=site.recent_report_dates or [],
             has_today_report=site.has_today_report,
             status=site.status,
         )

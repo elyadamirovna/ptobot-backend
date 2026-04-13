@@ -24,5 +24,6 @@ class Site:
     pto_engineer_id: str | None = None
     pto_engineer_name: str | None = None
     last_report_date: date | None = None
+    recent_report_dates: list[date] | None = None
     has_today_report: bool = False
     status: str = "missing"

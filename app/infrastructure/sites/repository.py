@@ -101,6 +101,29 @@ class SqlAlchemySiteRepository(SiteRepository):
             .group_by(ReportModel.site_id)
             .subquery()
         )
+        recent_reports_subquery = (
+            select(
+                ReportModel.site_id.label("site_id"),
+                ReportModel.report_date.label("report_date"),
+                func.row_number()
+                .over(
+                    partition_by=ReportModel.site_id,
+                    order_by=ReportModel.report_date.desc(),
+                )
+                .label("row_num"),
+            )
+            .where(ReportModel.site_id.is_not(None))
+            .subquery()
+        )
+        recent_report_dates_subquery = (
+            select(
+                recent_reports_subquery.c.site_id,
+                func.array_agg(recent_reports_subquery.c.report_date).label("recent_report_dates"),
+            )
+            .where(recent_reports_subquery.c.row_num <= 7)
+            .group_by(recent_reports_subquery.c.site_id)
+            .subquery()
+        )
 
         return (
             select(
@@ -108,10 +131,12 @@ class SqlAlchemySiteRepository(SiteRepository):
                 contractor_user.name.label("contractor_name"),
                 pto_engineer_user.name.label("pto_engineer_name"),
                 latest_report_subquery.c.last_report_date,
+                recent_report_dates_subquery.c.recent_report_dates,
             )
             .outerjoin(contractor_user, SiteModel.contractor_id == contractor_user.id)
             .outerjoin(pto_engineer_user, SiteModel.pto_engineer_id == pto_engineer_user.id)
             .outerjoin(latest_report_subquery, latest_report_subquery.c.site_id == SiteModel.id)
+            .outerjoin(recent_report_dates_subquery, recent_report_dates_subquery.c.site_id == SiteModel.id)
             .order_by(SiteModel.name.asc())
         )
 
@@ -121,6 +146,7 @@ class SqlAlchemySiteRepository(SiteRepository):
         contractor_name: str | None = row[1]
         pto_engineer_name: str | None = row[2]
         last_report_date: date | None = row[3]
+        recent_report_dates: list[date] | None = row[4]
         has_today_report = last_report_date == date.today() if last_report_date else False
 
         return Site(
@@ -141,6 +167,7 @@ class SqlAlchemySiteRepository(SiteRepository):
             pto_engineer_id=site_model.pto_engineer_id,
             pto_engineer_name=pto_engineer_name,
             last_report_date=last_report_date,
+            recent_report_dates=list(recent_report_dates or []),
             has_today_report=has_today_report,
             status="sent" if has_today_report else "missing",
         )
