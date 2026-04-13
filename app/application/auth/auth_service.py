@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.application.auth.phone import normalize_phone
 from app.application.auth.security import create_access_token, verify_password
 from app.domain.entities.user import User
 from app.domain.ports.user_repository import UserRepository
@@ -33,7 +34,7 @@ class AuthService:
         self._expires = token_expires_minutes
 
     def login(self, phone: str, password: str) -> LoginResult:
-        user = self._repo.get_by_phone(phone.strip())
+        user = self._repo.get_by_phone(normalize_phone(phone))
 
         if user is None or not user.is_active:
             raise InvalidCredentialsError

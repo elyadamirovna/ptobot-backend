@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.security import get_current_user
 from app.api.schemas.auth import ContractorOption, LoginRequest, LoginResponse, PtoEngineerCreate, UserOut
-from app.application.auth import AuthService, InvalidCredentialsError
+from app.application.auth import AuthService, InvalidCredentialsError, normalize_phone
 from app.application.auth.security import hash_password
 from app.config import Settings, get_settings
 from app.domain.ports import UserRepository
@@ -130,7 +130,8 @@ def create_pto_engineer(
             detail="Доступно только администратору",
         )
 
-    existing = repository.get_by_phone(body.phone.strip())
+    normalized_phone = normalize_phone(body.phone)
+    existing = repository.get_by_phone(normalized_phone)
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -142,7 +143,7 @@ def create_pto_engineer(
             id=uuid4().hex,
             name=body.name.strip(),
             company_name=body.company_name.strip() if body.company_name else None,
-            phone=body.phone.strip(),
+            phone=normalized_phone,
             hashed_password=hash_password(body.password),
             role="pto_engineer",
             is_active=True,
