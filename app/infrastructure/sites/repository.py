@@ -42,6 +42,15 @@ class SqlAlchemySiteRepository(SiteRepository):
             id=site.id,
             name=site.name,
             address=site.address,
+            customer_name=site.customer_name,
+            project_manager_name=site.project_manager_name,
+            pto_responsible_name=site.pto_responsible_name,
+            start_date=site.start_date,
+            planned_end_date=site.planned_end_date,
+            budget_total=site.budget_total,
+            budget_spent=site.budget_spent,
+            progress_percent=site.progress_percent,
+            status_note=site.status_note,
             contractor_id=site.contractor_id,
             pto_engineer_id=site.pto_engineer_id,
         )
@@ -56,6 +65,15 @@ class SqlAlchemySiteRepository(SiteRepository):
 
         model.name = site.name
         model.address = site.address
+        model.customer_name = site.customer_name
+        model.project_manager_name = site.project_manager_name
+        model.pto_responsible_name = site.pto_responsible_name
+        model.start_date = site.start_date
+        model.planned_end_date = site.planned_end_date
+        model.budget_total = site.budget_total
+        model.budget_spent = site.budget_spent
+        model.progress_percent = site.progress_percent
+        model.status_note = site.status_note
         model.contractor_id = site.contractor_id
         model.pto_engineer_id = site.pto_engineer_id
         self._session.commit()
@@ -109,6 +127,15 @@ class SqlAlchemySiteRepository(SiteRepository):
             id=site_model.id,
             name=site_model.name,
             address=site_model.address,
+            customer_name=site_model.customer_name,
+            project_manager_name=site_model.project_manager_name,
+            pto_responsible_name=site_model.pto_responsible_name,
+            start_date=site_model.start_date,
+            planned_end_date=site_model.planned_end_date,
+            budget_total=site_model.budget_total,
+            budget_spent=site_model.budget_spent,
+            progress_percent=site_model.progress_percent,
+            status_note=site_model.status_note,
             contractor_id=site_model.contractor_id,
             contractor_name=contractor_name,
             pto_engineer_id=site_model.pto_engineer_id,
