@@ -20,6 +20,9 @@ class UserRepository(Protocol):
     def update(self, user: User) -> User | None:
         ...
 
+    def delete(self, user_id: str) -> bool:
+        ...
+
     def list_all_by_role(self, role: str) -> list[User]:
         ...
 

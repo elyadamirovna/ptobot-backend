@@ -56,6 +56,14 @@ class SqlAlchemyUserRepository:
         self._db.refresh(row)
         return self._to_entity(row)
 
+    def delete(self, user_id: str) -> bool:
+        row = self._db.query(UserModel).filter(UserModel.id == user_id).first()
+        if row is None:
+            return False
+        self._db.delete(row)
+        self._db.commit()
+        return True
+
     def list_contractors(self) -> list[User]:
         rows = self._db.execute(
             select(UserModel)

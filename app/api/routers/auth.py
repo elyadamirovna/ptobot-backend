@@ -4,7 +4,8 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.security import get_current_user
@@ -15,6 +16,7 @@ from app.config import Settings, get_settings
 from app.domain.ports import UserRepository
 from app.domain.entities import User
 from app.infrastructure.database import get_db
+from app.infrastructure.reports.models import ReportModel
 from app.infrastructure.users import SqlAlchemyUserRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -198,6 +200,39 @@ def update_contractor(
         role=user.role,
         is_active=user.is_active,
     )
+
+
+@router.delete("/contractors/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_contractor(
+    user_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    repository: Annotated[UserRepository, Depends(get_user_repository)],
+    db: SessionDep,
+) -> Response:
+    _ensure_admin(current_user)
+    existing = repository.get_by_id(user_id)
+    if existing is None or existing.role != "contractor":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Подрядчик не найден",
+        )
+
+    report_exists = db.execute(
+        select(ReportModel.id).where(ReportModel.user_id == user_id).limit(1)
+    ).scalar_one_or_none()
+    if report_exists is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить подрядчика, пока за ним закреплены отчёты",
+        )
+
+    deleted = repository.delete(user_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Подрядчик не найден",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/pto-engineers", response_model=list[UserOut])
