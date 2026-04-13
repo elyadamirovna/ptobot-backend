@@ -74,4 +74,10 @@ def get_site_service(
     return SiteService(repository)
 
 
+def get_user_service_repository(
+    repository: Annotated[UserRepository, Depends(get_user_repository)],
+) -> UserRepository:
+    return repository
+
+
 ReportCreateForm = Annotated[ReportCreate, Depends(ReportCreate.as_form)]

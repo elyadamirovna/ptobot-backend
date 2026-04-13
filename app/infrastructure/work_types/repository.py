@@ -30,6 +30,38 @@ class SqlAlchemyWorkTypeRepository(WorkTypeRepository):
 
         return [self._to_entity(model) for model in work_types]
 
+    async def get_by_id(self, work_type_id: str) -> WorkType | None:
+        model = self._session.get(WorkTypeModel, work_type_id)
+        if model is None:
+            return None
+        return self._to_entity(model)
+
+    async def create(self, work_type: WorkType) -> WorkType:
+        model = WorkTypeModel(id=work_type.id, name=work_type.name)
+        self._session.add(model)
+        self._session.commit()
+        self._session.refresh(model)
+        return self._to_entity(model)
+
+    async def update(self, work_type: WorkType) -> WorkType | None:
+        model = self._session.get(WorkTypeModel, work_type.id)
+        if model is None:
+            return None
+
+        model.name = work_type.name
+        self._session.commit()
+        self._session.refresh(model)
+        return self._to_entity(model)
+
+    async def delete(self, work_type_id: str) -> bool:
+        model = self._session.get(WorkTypeModel, work_type_id)
+        if model is None:
+            return False
+
+        self._session.delete(model)
+        self._session.commit()
+        return True
+
     def _bootstrap_defaults(self) -> None:
         existing = {item.id for item in self._session.execute(select(WorkTypeModel)).scalars().all()}
         for identifier, name in DEFAULT_WORK_TYPES:

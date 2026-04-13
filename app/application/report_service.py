@@ -1,6 +1,9 @@
 """Application service for report-related use cases."""
 from __future__ import annotations
 
+import asyncio
+import logging
+from time import perf_counter
 from typing import Iterable, List, Sequence
 
 from fastapi import UploadFile
@@ -8,6 +11,8 @@ from fastapi import UploadFile
 from app.application.dto import ReportCreateCommand
 from app.domain.entities.report import Report
 from app.domain.ports import Clock, ReportRepository, StoragePort
+
+logger = logging.getLogger(__name__)
 
 
 class ReportService:
@@ -19,9 +24,8 @@ class ReportService:
         self._clock = clock
 
     async def create_report(self, payload: ReportCreateCommand, photos: Sequence[UploadFile]) -> Report:
-        photo_urls: List[str] = []
-        for photo in photos:
-            photo_urls.append(await self._storage.upload(photo))
+        started_at = perf_counter()
+        photo_urls: List[str] = list(await asyncio.gather(*(self._storage.upload(photo) for photo in photos)))
 
         report_id = await self._repository.next_id()
         created_at = self._clock.now()
@@ -40,6 +44,12 @@ class ReportService:
             photo_urls=photo_urls,
         )
         await self._repository.add(report)
+        logger.info(
+            "Created report %s with %d photos in %.3fs",
+            report.id,
+            len(photo_urls),
+            perf_counter() - started_at,
+        )
         return report
 
     async def list_reports(

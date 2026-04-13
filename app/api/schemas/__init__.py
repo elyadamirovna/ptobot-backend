@@ -1,11 +1,12 @@
-from .auth import LoginRequest, LoginResponse, UserOut
+from .auth import ContractorOption, LoginRequest, LoginResponse, UserOut
 from .report_history import SiteReportHistoryItemRead
 from .report import ReportCreate, ReportRead
 from .root import RootInfo
-from .site import SiteRead
-from .work_type import WorkTypeRead
+from .site import SiteRead, SiteWrite
+from .work_type import WorkTypeRead, WorkTypeWrite
 
 __all__ = [
+    "ContractorOption",
     "LoginRequest",
     "LoginResponse",
     "UserOut",
@@ -14,5 +15,7 @@ __all__ = [
     "ReportRead",
     "RootInfo",
     "SiteRead",
+    "SiteWrite",
     "WorkTypeRead",
+    "WorkTypeWrite",
 ]

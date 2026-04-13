@@ -32,6 +32,37 @@ class SqlAlchemySiteRepository(SiteRepository):
         rows = self._session.execute(stmt).all()
         return [self._to_entity(row) for row in rows]
 
+    def create(self, site: Site) -> Site:
+        model = SiteModel(
+            id=site.id,
+            name=site.name,
+            address=site.address,
+            contractor_id=site.contractor_id,
+        )
+        self._session.add(model)
+        self._session.commit()
+        return self.get_by_id(site.id) or site
+
+    def update(self, site: Site) -> Site | None:
+        model = self._session.get(SiteModel, site.id)
+        if model is None:
+            return None
+
+        model.name = site.name
+        model.address = site.address
+        model.contractor_id = site.contractor_id
+        self._session.commit()
+        return self.get_by_id(site.id)
+
+    def delete(self, site_id: str) -> bool:
+        model = self._session.get(SiteModel, site_id)
+        if model is None:
+            return False
+
+        self._session.delete(model)
+        self._session.commit()
+        return True
+
     @staticmethod
     def _base_stmt():
         latest_report_subquery = (

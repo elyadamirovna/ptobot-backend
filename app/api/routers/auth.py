@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.security import get_current_user
-from app.api.schemas.auth import LoginRequest, LoginResponse, UserOut
+from app.api.schemas.auth import ContractorOption, LoginRequest, LoginResponse, UserOut
 from app.application.auth import AuthService, InvalidCredentialsError
 from app.config import Settings, get_settings
+from app.domain.ports import UserRepository
 from app.domain.entities import User
 from app.infrastructure.database import get_db
 from app.infrastructure.users import SqlAlchemyUserRepository
@@ -64,3 +65,29 @@ def me(current_user: Annotated[User, Depends(get_current_user)]) -> UserOut:
         phone=current_user.phone,
         role=current_user.role,
     )
+
+
+def get_user_repository(db: SessionDep) -> UserRepository:
+    return SqlAlchemyUserRepository(db)
+
+
+@router.get("/contractors", response_model=list[ContractorOption])
+def list_contractors(
+    current_user: Annotated[User, Depends(get_current_user)],
+    repository: Annotated[UserRepository, Depends(get_user_repository)],
+) -> list[ContractorOption]:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Доступно только администратору",
+        )
+
+    return [
+        ContractorOption(
+            id=user.id,
+            name=user.name,
+            company_name=user.company_name,
+            phone=user.phone,
+        )
+        for user in repository.list_contractors()
+    ]

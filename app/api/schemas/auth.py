@@ -17,6 +17,13 @@ class UserOut(BaseModel):
     role: str
 
 
+class ContractorOption(BaseModel):
+    id: str
+    name: str
+    company_name: str | None = None
+    phone: str
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

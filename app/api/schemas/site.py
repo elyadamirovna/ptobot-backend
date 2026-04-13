@@ -3,9 +3,15 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.domain.entities.site import Site
+
+
+class SiteWrite(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    address: str = Field(..., min_length=1, max_length=255)
+    contractor_id: str | None = Field(default=None, max_length=64)
 
 
 class SiteRead(BaseModel):

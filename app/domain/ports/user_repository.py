@@ -16,3 +16,6 @@ class UserRepository(Protocol):
 
     def add(self, user: User) -> User:
         ...
+
+    def list_contractors(self) -> list[User]:
+        ...

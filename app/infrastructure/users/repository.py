@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.entities.user import User
@@ -39,6 +40,14 @@ class SqlAlchemyUserRepository:
         self._db.commit()
         self._db.refresh(row)
         return self._to_entity(row)
+
+    def list_contractors(self) -> list[User]:
+        rows = self._db.execute(
+            select(UserModel)
+            .where(UserModel.role == "contractor", UserModel.is_active.is_(True))
+            .order_by(UserModel.name.asc())
+        ).scalars().all()
+        return [self._to_entity(row) for row in rows]
 
     @staticmethod
     def _to_entity(row: UserModel) -> User:
