@@ -41,10 +41,33 @@ class SqlAlchemyUserRepository:
         self._db.refresh(row)
         return self._to_entity(row)
 
+    def update(self, user: User) -> User | None:
+        row = self._db.query(UserModel).filter(UserModel.id == user.id).first()
+        if row is None:
+            return None
+
+        row.name = user.name
+        row.company_name = user.company_name
+        row.phone = user.phone
+        row.hashed_password = user.hashed_password
+        row.role = user.role
+        row.is_active = user.is_active
+        self._db.commit()
+        self._db.refresh(row)
+        return self._to_entity(row)
+
     def list_contractors(self) -> list[User]:
         rows = self._db.execute(
             select(UserModel)
             .where(UserModel.role == "contractor", UserModel.is_active.is_(True))
+            .order_by(UserModel.name.asc())
+        ).scalars().all()
+        return [self._to_entity(row) for row in rows]
+
+    def list_all_by_role(self, role: str) -> list[User]:
+        rows = self._db.execute(
+            select(UserModel)
+            .where(UserModel.role == role)
             .order_by(UserModel.name.asc())
         ).scalars().all()
         return [self._to_entity(row) for row in rows]
