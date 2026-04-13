@@ -19,3 +19,6 @@ class UserRepository(Protocol):
 
     def list_contractors(self) -> list[User]:
         ...
+
+    def list_by_role(self, role: str) -> list[User]:
+        ...

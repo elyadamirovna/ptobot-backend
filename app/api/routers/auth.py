@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.security import get_current_user
-from app.api.schemas.auth import ContractorOption, LoginRequest, LoginResponse, UserOut
+from app.api.schemas.auth import ContractorOption, LoginRequest, LoginResponse, PtoEngineerCreate, UserOut
 from app.application.auth import AuthService, InvalidCredentialsError
+from app.application.auth.security import hash_password
 from app.config import Settings, get_settings
 from app.domain.ports import UserRepository
 from app.domain.entities import User
@@ -91,3 +93,66 @@ def list_contractors(
         )
         for user in repository.list_contractors()
     ]
+
+
+@router.get("/pto-engineers", response_model=list[UserOut])
+def list_pto_engineers(
+    current_user: Annotated[User, Depends(get_current_user)],
+    repository: Annotated[UserRepository, Depends(get_user_repository)],
+) -> list[UserOut]:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Доступно только администратору",
+        )
+
+    return [
+        UserOut(
+            id=user.id,
+            name=user.name,
+            company_name=user.company_name,
+            phone=user.phone,
+            role=user.role,
+        )
+        for user in repository.list_by_role("pto_engineer")
+    ]
+
+
+@router.post("/pto-engineers", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def create_pto_engineer(
+    body: PtoEngineerCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    repository: Annotated[UserRepository, Depends(get_user_repository)],
+) -> UserOut:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Доступно только администратору",
+        )
+
+    existing = repository.get_by_phone(body.phone.strip())
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Пользователь с таким телефоном уже существует",
+        )
+
+    user = repository.add(
+        User(
+            id=uuid4().hex,
+            name=body.name.strip(),
+            company_name=body.company_name.strip() if body.company_name else None,
+            phone=body.phone.strip(),
+            hashed_password=hash_password(body.password),
+            role="pto_engineer",
+            is_active=True,
+        )
+    )
+
+    return UserOut(
+        id=user.id,
+        name=user.name,
+        company_name=user.company_name,
+        phone=user.phone,
+        role=user.role,
+    )

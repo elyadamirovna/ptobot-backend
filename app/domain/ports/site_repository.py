@@ -17,6 +17,9 @@ class SiteRepository(Protocol):
     def list_by_contractor(self, contractor_id: str) -> Iterable[Site]:
         ...
 
+    def list_by_pto_engineer(self, pto_engineer_id: str) -> Iterable[Site]:
+        ...
+
     def create(self, site: Site) -> Site:
         ...
 

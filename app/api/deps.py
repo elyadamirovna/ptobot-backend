@@ -51,8 +51,9 @@ def get_report_service(
     repository: Annotated[ReportRepository, Depends(get_report_repository)],
     storage: Annotated[StoragePort, Depends(get_storage)],
     clock: Annotated[Clock, Depends(get_clock)],
+    site_service: Annotated[SiteService, Depends(get_site_service)],
 ) -> ReportService:
-    return ReportService(repository=repository, storage=storage, clock=clock)
+    return ReportService(repository=repository, storage=storage, clock=clock, site_service=site_service)
 
 
 def get_report_history_service(

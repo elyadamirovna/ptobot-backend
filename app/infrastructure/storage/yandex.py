@@ -65,3 +65,19 @@ class YandexStorage(StoragePort):
         )
 
         return f"https://{self._settings.yc_s3_bucket}.storage.yandexcloud.net/{key}"
+
+    async def delete(self, url: str) -> None:
+        bucket_prefix = f"https://{self._settings.yc_s3_bucket}.storage.yandexcloud.net/"
+        if not url.startswith(bucket_prefix):
+            logger.warning("Skip deleting unsupported storage url '%s'", url)
+            return
+
+        key = url.removeprefix(bucket_prefix)
+        if not key:
+            return
+
+        await asyncio.to_thread(
+            self._client.delete_object,
+            Bucket=self._settings.yc_s3_bucket,
+            Key=key,
+        )

@@ -94,6 +94,29 @@ class SqlAlchemyReportRepository(ReportRepository):
     async def next_id(self) -> str:
         return uuid.uuid4().hex
 
+    async def get_by_id(self, report_id: str) -> Report | None:
+        model = self._session.get(ReportModel, report_id)
+        return self._to_entity(model) if model else None
+
+    async def update(self, report: Report) -> Report:
+        model = self._session.get(ReportModel, report.id)
+        if model is None:
+            raise ValueError(f"Report {report.id} not found")
+
+        model.user_id = report.user_id
+        model.site_id = report.site_id
+        model.work_type_id = report.work_type_id
+        model.report_date = report.report_date
+        model.description = report.description
+        model.people = report.people
+        model.volume = report.volume
+        model.machines = report.machines
+        model.created_at = report.created_at
+        model.photo_urls = list(report.photo_urls)
+        self._session.commit()
+        self._session.refresh(model)
+        return self._to_entity(model)
+
     @staticmethod
     def _to_entity(model: ReportModel) -> Report:
         return Report(

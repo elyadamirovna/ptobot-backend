@@ -5,7 +5,7 @@ from datetime import date
 from typing import Iterable
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.domain.entities import Site
 from app.domain.ports import SiteRepository
@@ -32,12 +32,18 @@ class SqlAlchemySiteRepository(SiteRepository):
         rows = self._session.execute(stmt).all()
         return [self._to_entity(row) for row in rows]
 
+    def list_by_pto_engineer(self, pto_engineer_id: str) -> Iterable[Site]:
+        stmt = self._base_stmt().where(SiteModel.pto_engineer_id == pto_engineer_id)
+        rows = self._session.execute(stmt).all()
+        return [self._to_entity(row) for row in rows]
+
     def create(self, site: Site) -> Site:
         model = SiteModel(
             id=site.id,
             name=site.name,
             address=site.address,
             contractor_id=site.contractor_id,
+            pto_engineer_id=site.pto_engineer_id,
         )
         self._session.add(model)
         self._session.commit()
@@ -51,6 +57,7 @@ class SqlAlchemySiteRepository(SiteRepository):
         model.name = site.name
         model.address = site.address
         model.contractor_id = site.contractor_id
+        model.pto_engineer_id = site.pto_engineer_id
         self._session.commit()
         return self.get_by_id(site.id)
 
@@ -65,6 +72,8 @@ class SqlAlchemySiteRepository(SiteRepository):
 
     @staticmethod
     def _base_stmt():
+        contractor_user = aliased(UserModel)
+        pto_engineer_user = aliased(UserModel)
         latest_report_subquery = (
             select(
                 ReportModel.site_id.label("site_id"),
@@ -78,10 +87,12 @@ class SqlAlchemySiteRepository(SiteRepository):
         return (
             select(
                 SiteModel,
-                UserModel.name.label("contractor_name"),
+                contractor_user.name.label("contractor_name"),
+                pto_engineer_user.name.label("pto_engineer_name"),
                 latest_report_subquery.c.last_report_date,
             )
-            .outerjoin(UserModel, SiteModel.contractor_id == UserModel.id)
+            .outerjoin(contractor_user, SiteModel.contractor_id == contractor_user.id)
+            .outerjoin(pto_engineer_user, SiteModel.pto_engineer_id == pto_engineer_user.id)
             .outerjoin(latest_report_subquery, latest_report_subquery.c.site_id == SiteModel.id)
             .order_by(SiteModel.name.asc())
         )
@@ -90,7 +101,8 @@ class SqlAlchemySiteRepository(SiteRepository):
     def _to_entity(row) -> Site:
         site_model: SiteModel = row[0]
         contractor_name: str | None = row[1]
-        last_report_date: date | None = row[2]
+        pto_engineer_name: str | None = row[2]
+        last_report_date: date | None = row[3]
         has_today_report = last_report_date == date.today() if last_report_date else False
 
         return Site(
@@ -99,6 +111,8 @@ class SqlAlchemySiteRepository(SiteRepository):
             address=site_model.address,
             contractor_id=site_model.contractor_id,
             contractor_name=contractor_name,
+            pto_engineer_id=site_model.pto_engineer_id,
+            pto_engineer_name=pto_engineer_name,
             last_report_date=last_report_date,
             has_today_report=has_today_report,
             status="sent" if has_today_report else "missing",

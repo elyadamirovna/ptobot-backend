@@ -17,6 +17,8 @@ class SiteService:
     def list_sites_for_user(self, user: User) -> Iterable[Site]:
         if user.role == "admin":
             return self._repository.list_all()
+        if user.role == "pto_engineer":
+            return self._repository.list_by_pto_engineer(user.id)
         return self._repository.list_by_contractor(user.id)
 
     def get_site_for_user(self, *, site_id: str, user: User) -> Site:
@@ -30,6 +32,14 @@ class SiteService:
         if user.role == "admin":
             return site
 
+        if user.role == "pto_engineer":
+            if site.pto_engineer_id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Нет доступа к выбранному объекту",
+                )
+            return site
+
         if site.contractor_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -38,13 +48,22 @@ class SiteService:
 
         return site
 
-    def create_site(self, *, user: User, name: str, address: str, contractor_id: str | None) -> Site:
+    def create_site(
+        self,
+        *,
+        user: User,
+        name: str,
+        address: str,
+        contractor_id: str | None,
+        pto_engineer_id: str | None,
+    ) -> Site:
         self._ensure_admin(user)
         site = Site(
             id=uuid4().hex,
             name=name.strip(),
             address=address.strip(),
             contractor_id=contractor_id,
+            pto_engineer_id=pto_engineer_id,
         )
         return self._repository.create(site)
 
@@ -56,6 +75,7 @@ class SiteService:
         name: str,
         address: str,
         contractor_id: str | None,
+        pto_engineer_id: str | None,
     ) -> Site:
         self._ensure_admin(user)
         existing = self._repository.get_by_id(site_id)
@@ -72,6 +92,8 @@ class SiteService:
                 address=address.strip(),
                 contractor_id=contractor_id,
                 contractor_name=existing.contractor_name,
+                pto_engineer_id=pto_engineer_id,
+                pto_engineer_name=existing.pto_engineer_name,
                 last_report_date=existing.last_report_date,
                 has_today_report=existing.has_today_report,
                 status=existing.status,

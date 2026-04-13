@@ -10,3 +10,6 @@ from fastapi import UploadFile
 class StoragePort(Protocol):
     async def upload(self, file: UploadFile) -> str:
         ...
+
+    async def delete(self, url: str) -> None:
+        ...

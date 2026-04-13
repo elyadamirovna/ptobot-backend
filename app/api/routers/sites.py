@@ -35,6 +35,7 @@ def create_site(
         name=body.name,
         address=body.address,
         contractor_id=body.contractor_id,
+        pto_engineer_id=body.pto_engineer_id,
     )
     return SiteRead.from_entity(site)
 
@@ -52,6 +53,7 @@ def update_site(
         name=body.name,
         address=body.address,
         contractor_id=body.contractor_id,
+        pto_engineer_id=body.pto_engineer_id,
     )
     return SiteRead.from_entity(site)
 

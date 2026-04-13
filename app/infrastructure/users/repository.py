@@ -49,6 +49,14 @@ class SqlAlchemyUserRepository:
         ).scalars().all()
         return [self._to_entity(row) for row in rows]
 
+    def list_by_role(self, role: str) -> list[User]:
+        rows = self._db.execute(
+            select(UserModel)
+            .where(UserModel.role == role, UserModel.is_active.is_(True))
+            .order_by(UserModel.name.asc())
+        ).scalars().all()
+        return [self._to_entity(row) for row in rows]
+
     @staticmethod
     def _to_entity(row: UserModel) -> User:
         return User(

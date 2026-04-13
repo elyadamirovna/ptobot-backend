@@ -58,3 +58,13 @@ class ReportRead(BaseModel):
     @classmethod
     def from_entity(cls, report: Report) -> "ReportRead":
         return cls(**asdict(report))
+
+
+class ReportUpdate(BaseModel):
+    work_type_id: constr(min_length=1, max_length=64) = Field(..., description="Type of work performed")
+    report_date: date = Field(..., description="Date when work was performed")
+    description: constr(max_length=2000) = Field("", description="Free-form description")
+    people: constr(max_length=256) = Field("", description="People involved")
+    volume: constr(max_length=256) = Field("", description="Work volume")
+    machines: constr(max_length=256) = Field("", description="Machines used")
+    keep_photo_urls: List[str] = Field(default_factory=list)

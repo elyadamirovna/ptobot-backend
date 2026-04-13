@@ -1,12 +1,13 @@
 """Routes for reports creation and listing."""
 from __future__ import annotations
 
+import json
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from app.api.deps import ReportCreateForm, get_report_service, get_site_service
-from app.api.schemas import ReportRead
+from app.api.schemas import ReportRead, ReportUpdate
 from app.api.security import get_current_user
 from app.application import ReportCreateCommand, ReportService, SiteService
 from app.domain.entities import User
@@ -47,3 +48,34 @@ async def list_reports(
         user_id = current_user.id
     reports = await report_service.list_reports(site_id=site_id, user_id=user_id, work_type_id=work_type_id)
     return [ReportRead.from_entity(report) for report in reports]
+
+
+@router.patch("/{report_id}", response_model=ReportRead)
+async def update_report(
+    report_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    report_service: ReportService = Depends(get_report_service),
+    payload: str = File(..., description="JSON payload for report update"),
+    photos: List[UploadFile] = File(default_factory=list),
+) -> ReportRead:
+    try:
+        body = ReportUpdate.model_validate(json.loads(payload))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Некорректные данные для обновления отчёта",
+        ) from exc
+
+    report = await report_service.update_report(
+        report_id=report_id,
+        user=current_user,
+        work_type_id=body.work_type_id,
+        report_date=body.report_date,
+        description=body.description,
+        people=body.people,
+        volume=body.volume,
+        machines=body.machines,
+        keep_photo_urls=body.keep_photo_urls,
+        new_photos=photos,
+    )
+    return ReportRead.from_entity(report)

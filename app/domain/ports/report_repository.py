@@ -33,3 +33,9 @@ class ReportRepository(Protocol):
 
     async def next_id(self) -> str:
         ...
+
+    async def get_by_id(self, report_id: str) -> Report | None:
+        ...
+
+    async def update(self, report: Report) -> Report:
+        ...

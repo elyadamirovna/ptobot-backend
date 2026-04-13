@@ -19,3 +19,9 @@ class SiteModel(Base):
         index=True,
         nullable=True,
     )
+    pto_engineer_id: Mapped[str | None] = mapped_column(
+        String(64),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
