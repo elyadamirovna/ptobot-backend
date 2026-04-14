@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
+from datetime import date
 from pathlib import Path
 from time import perf_counter
 
@@ -15,6 +17,52 @@ from app.config import Settings
 from app.domain.ports import StoragePort
 
 logger = logging.getLogger(__name__)
+
+CYRILLIC_TO_LATIN = {
+    "а": "a",
+    "б": "b",
+    "в": "v",
+    "г": "g",
+    "д": "d",
+    "е": "e",
+    "ё": "e",
+    "ж": "zh",
+    "з": "z",
+    "и": "i",
+    "й": "y",
+    "к": "k",
+    "л": "l",
+    "м": "m",
+    "н": "n",
+    "о": "o",
+    "п": "p",
+    "р": "r",
+    "с": "s",
+    "т": "t",
+    "у": "u",
+    "ф": "f",
+    "х": "h",
+    "ц": "ts",
+    "ч": "ch",
+    "ш": "sh",
+    "щ": "sch",
+    "ъ": "",
+    "ы": "y",
+    "ь": "",
+    "э": "e",
+    "ю": "yu",
+    "я": "ya",
+}
+
+
+def slugify_site_name(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return ""
+
+    transliterated = "".join(CYRILLIC_TO_LATIN.get(char, char) for char in raw)
+    slug = re.sub(r"[^a-z0-9]+", "-", transliterated).strip("-")
+    return re.sub(r"-{2,}", "-", slug)
 
 
 class YandexStorage(StoragePort):
@@ -32,10 +80,30 @@ class YandexStorage(StoragePort):
             config=Config(retries={"max_attempts": 3, "mode": "standard"}, connect_timeout=5, read_timeout=30),
         )
 
-    async def upload(self, file: UploadFile) -> str:
+    async def upload(
+        self,
+        file: UploadFile,
+        *,
+        site_id: str,
+        site_name: str | None,
+        report_id: str,
+        report_date: date,
+    ) -> str:
         total_started_at = perf_counter()
         ext = Path(file.filename or "").suffix or ".jpg"
-        key = str(self._settings.storage_key_prefix() / f"{uuid.uuid4().hex}{ext}")
+        site_slug = slugify_site_name(site_name)
+        site_prefix = f"{site_id}-{site_slug}" if site_slug else site_id
+        original_name = Path(file.filename or "").stem.strip()
+        file_slug = slugify_site_name(original_name) or "photo"
+        key = str(
+            self._settings.storage_key_prefix()
+            / site_prefix
+            / f"{report_date:%Y}"
+            / f"{report_date:%m}"
+            / f"{report_date:%d}"
+            / report_id
+            / f"{uuid.uuid4().hex}-{file_slug}{ext.lower()}"
+        )
         read_started_at = perf_counter()
         content = await file.read()
         read_elapsed = perf_counter() - read_started_at

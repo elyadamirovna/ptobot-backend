@@ -36,9 +36,22 @@ class ReportService:
 
     async def create_report(self, payload: ReportCreateCommand, photos: Sequence[UploadFile]) -> Report:
         started_at = perf_counter()
-        photo_urls: List[str] = list(await asyncio.gather(*(self._storage.upload(photo) for photo in photos)))
-
         report_id = await self._repository.next_id()
+        site = self._site_service.get_site(payload.site_id)
+        photo_urls: List[str] = list(
+            await asyncio.gather(
+                *(
+                    self._storage.upload(
+                        photo,
+                        site_id=payload.site_id,
+                        site_name=site.name,
+                        report_id=report_id,
+                        report_date=payload.report_date,
+                    )
+                    for photo in photos
+                )
+            )
+        )
         created_at = self._clock.now()
 
         report = Report(
@@ -106,7 +119,21 @@ class ReportService:
         removed_urls = [url for url in existing.photo_urls if url not in keep_set]
         appended_urls: List[str] = []
         if new_photos:
-            appended_urls = list(await asyncio.gather(*(self._storage.upload(photo) for photo in new_photos)))
+            site = self._site_service.get_site(existing.site_id)
+            appended_urls = list(
+                await asyncio.gather(
+                    *(
+                        self._storage.upload(
+                            photo,
+                            site_id=existing.site_id,
+                            site_name=site.name,
+                            report_id=existing.id,
+                            report_date=report_date,
+                        )
+                        for photo in new_photos
+                    )
+                )
+            )
         for url in removed_urls:
             await self._storage.delete(url)
 

@@ -21,14 +21,17 @@ class SiteService:
             return self._repository.list_by_pto_engineer(user.id)
         return self._repository.list_by_contractor(user.id)
 
-    def get_site_for_user(self, *, site_id: str, user: User) -> Site:
+    def get_site(self, site_id: str) -> Site:
         site = self._repository.get_by_id(site_id)
         if site is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Объект не найден",
             )
+        return site
 
+    def get_site_for_user(self, *, site_id: str, user: User) -> Site:
+        site = self.get_site(site_id)
         if user.role == "admin":
             return site
 
