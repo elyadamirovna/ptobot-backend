@@ -10,7 +10,7 @@ from fastapi import UploadFile
 from fastapi import HTTPException, status
 
 from app.application.dto import ReportCreateCommand
-from app.domain.entities import User
+from app.domain.entities import ReportWorkItem, User
 from app.domain.entities.report import Report
 from app.application.site_service import SiteService
 from app.domain.ports import Clock, ReportRepository, StoragePort
@@ -34,6 +34,43 @@ class ReportService:
         self._clock = clock
         self._site_service = site_service
 
+    @staticmethod
+    def _normalize_work_items(
+        *,
+        report_id: str,
+        work_type_id: str,
+        description: str,
+        people: str,
+        volume: str,
+        machines: str,
+        work_items,
+    ) -> List[ReportWorkItem]:
+        normalized = [
+            ReportWorkItem(
+                id=f"{report_id}-{index}",
+                work_type_id=item.work_type_id,
+                description=item.description,
+                people=item.people,
+                volume=item.volume,
+                machines=item.machines,
+                sort_order=item.sort_order if item.sort_order is not None else index,
+            )
+            for index, item in enumerate(work_items or [])
+        ]
+        if normalized:
+            return normalized
+        return [
+            ReportWorkItem(
+                id=f"{report_id}-legacy",
+                work_type_id=work_type_id,
+                description=description,
+                people=people,
+                volume=volume,
+                machines=machines,
+                sort_order=0,
+            )
+        ]
+
     async def create_report(self, payload: ReportCreateCommand, photos: Sequence[UploadFile]) -> Report:
         started_at = perf_counter()
         report_id = await self._repository.next_id()
@@ -53,6 +90,15 @@ class ReportService:
             )
         )
         created_at = self._clock.now()
+        work_items = self._normalize_work_items(
+            report_id=report_id,
+            work_type_id=payload.work_type_id,
+            description=payload.description,
+            people=payload.people,
+            volume=payload.volume,
+            machines=payload.machines,
+            work_items=payload.work_items,
+        )
 
         report = Report(
             id=report_id,
@@ -66,6 +112,7 @@ class ReportService:
             machines=payload.machines,
             created_at=created_at,
             photo_urls=photo_urls,
+            work_items=work_items,
         )
         await self._repository.add(report)
         logger.info(
@@ -98,6 +145,7 @@ class ReportService:
         machines: str,
         keep_photo_urls: Sequence[str],
         new_photos: Sequence[UploadFile],
+        work_items,
     ) -> Report:
         existing = await self._repository.get_by_id(report_id)
         if existing is None:
@@ -137,6 +185,16 @@ class ReportService:
         for url in removed_urls:
             await self._storage.delete(url)
 
+        normalized_items = self._normalize_work_items(
+            report_id=existing.id,
+            work_type_id=work_type_id,
+            description=description,
+            people=people,
+            volume=volume,
+            machines=machines,
+            work_items=work_items,
+        )
+
         updated = Report(
             id=existing.id,
             user_id=existing.user_id,
@@ -149,6 +207,7 @@ class ReportService:
             machines=machines,
             created_at=existing.created_at,
             photo_urls=[url for url in existing.photo_urls if url in keep_set] + appended_urls,
+            work_items=normalized_items,
         )
         return await self._repository.update(updated)
 

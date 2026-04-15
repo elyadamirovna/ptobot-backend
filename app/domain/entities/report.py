@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import List
 
+from .report_work_item import ReportWorkItem
+
 
 @dataclass(slots=True)
 class Report:
@@ -19,3 +21,4 @@ class Report:
     machines: str
     created_at: datetime
     photo_urls: List[str] = field(default_factory=list)
+    work_items: List[ReportWorkItem] = field(default_factory=list)

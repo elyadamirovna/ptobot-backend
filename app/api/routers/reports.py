@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, Up
 from app.api.deps import ReportCreateForm, get_report_service, get_site_service
 from app.api.schemas import ReportRead, ReportUpdate
 from app.api.security import get_current_user
-from app.application import ReportCreateCommand, ReportService, SiteService
+from app.application import ReportCreateCommand, ReportService, ReportWorkItemCommand, SiteService
 from app.domain.entities import User
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -31,7 +31,27 @@ async def create_report(
 
     site_service.get_site_for_user(site_id=payload.site_id, user=current_user)
 
-    command = ReportCreateCommand(user_id=current_user.id, **payload.model_dump())
+    command = ReportCreateCommand(
+        user_id=current_user.id,
+        site_id=payload.site_id,
+        work_type_id=payload.work_type_id,
+        report_date=payload.report_date,
+        description=payload.description,
+        people=payload.people,
+        volume=payload.volume,
+        machines=payload.machines,
+        work_items=[
+            ReportWorkItemCommand(
+                work_type_id=item.work_type_id,
+                description=item.description,
+                people=item.people,
+                volume=item.volume,
+                machines=item.machines,
+                sort_order=item.sort_order,
+            )
+            for item in payload.work_items
+        ],
+    )
     report = await report_service.create_report(command, photos)
     return ReportRead.from_entity(report)
 
@@ -77,6 +97,7 @@ async def update_report(
         machines=body.machines,
         keep_photo_urls=body.keep_photo_urls,
         new_photos=photos,
+        work_items=body.work_items,
     )
     return ReportRead.from_entity(report)
 

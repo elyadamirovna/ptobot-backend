@@ -1,5 +1,5 @@
 from .repositories.memory import InMemoryReportRepository, InMemoryWorkTypeRepository
-from .reports import ReportModel, SqlAlchemyReportRepository
+from .reports import ReportModel, ReportWorkItemModel, SqlAlchemyReportRepository
 from .sites import SiteModel, SqlAlchemySiteRepository
 from .storage.yandex import YandexStorage
 from .users import SqlAlchemyUserRepository
@@ -13,6 +13,7 @@ __all__ = [
     "SqlAlchemyUserRepository",
     "SqlAlchemyWorkTypeRepository",
     "ReportModel",
+    "ReportWorkItemModel",
     "SiteModel",
     "WorkTypeModel",
     "YandexStorage",

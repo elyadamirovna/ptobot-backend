@@ -8,6 +8,7 @@ from typing import List
 from pydantic import BaseModel
 
 from app.domain.entities import ReportHistoryItem
+from .report import ReportWorkItemPayload
 
 
 class SiteReportHistoryItemRead(BaseModel):
@@ -24,6 +25,7 @@ class SiteReportHistoryItemRead(BaseModel):
     photo_urls: List[str]
     author_id: str
     author_name: str
+    work_items: List[ReportWorkItemPayload]
 
     @classmethod
     def from_entity(cls, item: ReportHistoryItem) -> "SiteReportHistoryItemRead":

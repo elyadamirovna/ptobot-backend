@@ -1,4 +1,4 @@
-from .dto import ReportCreateCommand
+from .dto import ReportCreateCommand, ReportWorkItemCommand
 from .report_history_service import ReportHistoryService
 from .report_service import ReportService
 from .site_service import SiteService
@@ -6,6 +6,7 @@ from .work_type_service import WorkTypeService
 
 __all__ = [
     "ReportCreateCommand",
+    "ReportWorkItemCommand",
     "ReportHistoryService",
     "ReportService",
     "SiteService",
