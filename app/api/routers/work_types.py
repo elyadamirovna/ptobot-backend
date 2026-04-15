@@ -28,7 +28,17 @@ async def create_work_type(
     current_user: User = Depends(get_current_user),
     service: WorkTypeService = Depends(get_work_type_service),
 ) -> WorkTypeRead:
-    work_type = await service.create_work_type(user=current_user, name=body.name)
+    work_type = await service.create_work_type(
+        user=current_user,
+        name=body.name,
+        parent_id=body.parent_id,
+        sort_order=body.sort_order,
+        unit=body.unit,
+        is_active=body.is_active,
+        requires_volume=body.requires_volume,
+        requires_people=body.requires_people,
+        requires_machines=body.requires_machines,
+    )
     return WorkTypeRead.from_entity(work_type)
 
 
@@ -43,6 +53,13 @@ async def update_work_type(
         user=current_user,
         work_type_id=work_type_id,
         name=body.name,
+        parent_id=body.parent_id,
+        sort_order=body.sort_order,
+        unit=body.unit,
+        is_active=body.is_active,
+        requires_volume=body.requires_volume,
+        requires_people=body.requires_people,
+        requires_machines=body.requires_machines,
     )
     return WorkTypeRead.from_entity(work_type)
 

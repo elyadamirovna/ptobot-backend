@@ -18,13 +18,62 @@ class WorkTypeService:
     async def list_work_types(self) -> Iterable[WorkType]:
         return await self._repository.list()
 
-    async def create_work_type(self, *, user: User, name: str) -> WorkType:
+    async def create_work_type(
+        self,
+        *,
+        user: User,
+        name: str,
+        parent_id: str | None = None,
+        sort_order: int = 0,
+        unit: str | None = None,
+        is_active: bool = True,
+        requires_volume: bool = False,
+        requires_people: bool = False,
+        requires_machines: bool = False,
+    ) -> WorkType:
         self._ensure_admin(user)
-        return await self._repository.create(WorkType(id=uuid4().hex, name=name.strip()))
+        return await self._repository.create(
+            WorkType(
+                id=uuid4().hex,
+                name=name.strip(),
+                parent_id=parent_id,
+                sort_order=sort_order,
+                unit=unit.strip() if unit else None,
+                is_active=is_active,
+                requires_volume=requires_volume,
+                requires_people=requires_people,
+                requires_machines=requires_machines,
+            )
+        )
 
-    async def update_work_type(self, *, user: User, work_type_id: str, name: str) -> WorkType:
+    async def update_work_type(
+        self,
+        *,
+        user: User,
+        work_type_id: str,
+        name: str,
+        parent_id: str | None = None,
+        sort_order: int = 0,
+        unit: str | None = None,
+        is_active: bool = True,
+        requires_volume: bool = False,
+        requires_people: bool = False,
+        requires_machines: bool = False,
+    ) -> WorkType:
         self._ensure_admin(user)
-        updated = await self._repository.update(WorkType(id=work_type_id, name=name.strip()))
+        updated = await self._repository.update(
+            WorkType(
+                id=work_type_id,
+                name=name.strip(),
+                parent_id=parent_id,
+                sort_order=sort_order,
+                unit=unit.strip() if unit else None,
+                is_active=is_active,
+                requires_volume=requires_volume,
+                requires_people=requires_people,
+                requires_machines=requires_machines,
+            )
+        )
         if updated is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

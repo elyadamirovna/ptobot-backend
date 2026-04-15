@@ -11,10 +11,150 @@ from app.domain.ports import WorkTypeRepository
 from app.infrastructure.work_types.models import WorkTypeModel
 
 
-DEFAULT_WORK_TYPES: list[tuple[str, str]] = [
-    ("1", "Земляные работы"),
-    ("2", "Бетонирование"),
-    ("3", "Монтаж конструкций"),
+DEFAULT_WORK_TYPES: list[dict[str, object]] = [
+    {
+        "id": "roadway",
+        "name": "Устройство проезжей части",
+        "parent_id": None,
+        "sort_order": 10,
+        "unit": None,
+        "is_active": True,
+        "requires_volume": False,
+        "requires_people": False,
+        "requires_machines": False,
+    },
+    {
+        "id": "roadway-subgrade",
+        "name": "Разработка корыта",
+        "parent_id": "roadway",
+        "sort_order": 11,
+        "unit": "м3",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "roadway-sand-base",
+        "name": "Устройство песчаного основания",
+        "parent_id": "roadway",
+        "sort_order": 12,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "roadway-crushed-base",
+        "name": "Устройство щебеночного основания",
+        "parent_id": "roadway",
+        "sort_order": 13,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "roadway-lower-asphalt",
+        "name": "Устройство нижнего слоя покрытия",
+        "parent_id": "roadway",
+        "sort_order": 15,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "roadway-upper-asphalt",
+        "name": "Устройство верхнего слоя покрытия",
+        "parent_id": "roadway",
+        "sort_order": 16,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "sidewalk",
+        "name": "Устройство тротуара",
+        "parent_id": None,
+        "sort_order": 20,
+        "unit": None,
+        "is_active": True,
+        "requires_volume": False,
+        "requires_people": False,
+        "requires_machines": False,
+    },
+    {
+        "id": "sidewalk-sand-base",
+        "name": "Устройство песчаного основания",
+        "parent_id": "sidewalk",
+        "sort_order": 22,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "sidewalk-paving-slabs",
+        "name": "Укладка тротуарной плитки",
+        "parent_id": "sidewalk",
+        "sort_order": 25,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": False,
+    },
+    {
+        "id": "curbstone",
+        "name": "Устройство бортового камня (бетонный)",
+        "parent_id": None,
+        "sort_order": 30,
+        "unit": None,
+        "is_active": True,
+        "requires_volume": False,
+        "requires_people": False,
+        "requires_machines": False,
+    },
+    {
+        "id": "curbstone-install",
+        "name": "Установка бортового камня",
+        "parent_id": "curbstone",
+        "sort_order": 34,
+        "unit": "п.м.",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": True,
+    },
+    {
+        "id": "lawn",
+        "name": "Устройство газона",
+        "parent_id": None,
+        "sort_order": 40,
+        "unit": None,
+        "is_active": True,
+        "requires_volume": False,
+        "requires_people": False,
+        "requires_machines": False,
+    },
+    {
+        "id": "lawn-seeding",
+        "name": "Посев газона",
+        "parent_id": "lawn",
+        "sort_order": 45,
+        "unit": "м2",
+        "is_active": True,
+        "requires_volume": True,
+        "requires_people": True,
+        "requires_machines": False,
+    },
 ]
 
 
@@ -23,10 +163,14 @@ class SqlAlchemyWorkTypeRepository(WorkTypeRepository):
         self._session = session
 
     async def list(self) -> Iterable[WorkType]:
-        work_types = self._session.execute(select(WorkTypeModel)).scalars().all()
+        work_types = self._session.execute(
+            select(WorkTypeModel).order_by(WorkTypeModel.sort_order.asc(), WorkTypeModel.name.asc())
+        ).scalars().all()
         if not work_types:
             self._bootstrap_defaults()
-            work_types = self._session.execute(select(WorkTypeModel)).scalars().all()
+            work_types = self._session.execute(
+                select(WorkTypeModel).order_by(WorkTypeModel.sort_order.asc(), WorkTypeModel.name.asc())
+            ).scalars().all()
 
         return [self._to_entity(model) for model in work_types]
 
@@ -37,7 +181,17 @@ class SqlAlchemyWorkTypeRepository(WorkTypeRepository):
         return self._to_entity(model)
 
     async def create(self, work_type: WorkType) -> WorkType:
-        model = WorkTypeModel(id=work_type.id, name=work_type.name)
+        model = WorkTypeModel(
+            id=work_type.id,
+            name=work_type.name,
+            parent_id=work_type.parent_id,
+            sort_order=work_type.sort_order,
+            unit=work_type.unit,
+            is_active=work_type.is_active,
+            requires_volume=work_type.requires_volume,
+            requires_people=work_type.requires_people,
+            requires_machines=work_type.requires_machines,
+        )
         self._session.add(model)
         self._session.commit()
         self._session.refresh(model)
@@ -49,6 +203,13 @@ class SqlAlchemyWorkTypeRepository(WorkTypeRepository):
             return None
 
         model.name = work_type.name
+        model.parent_id = work_type.parent_id
+        model.sort_order = work_type.sort_order
+        model.unit = work_type.unit
+        model.is_active = work_type.is_active
+        model.requires_volume = work_type.requires_volume
+        model.requires_people = work_type.requires_people
+        model.requires_machines = work_type.requires_machines
         self._session.commit()
         self._session.refresh(model)
         return self._to_entity(model)
@@ -64,11 +225,33 @@ class SqlAlchemyWorkTypeRepository(WorkTypeRepository):
 
     def _bootstrap_defaults(self) -> None:
         existing = {item.id for item in self._session.execute(select(WorkTypeModel)).scalars().all()}
-        for identifier, name in DEFAULT_WORK_TYPES:
-            if identifier not in existing:
-                self._session.merge(WorkTypeModel(id=identifier, name=name))
+        for item in DEFAULT_WORK_TYPES:
+            if item["id"] not in existing:
+                self._session.merge(
+                    WorkTypeModel(
+                        id=str(item["id"]),
+                        name=str(item["name"]),
+                        parent_id=item["parent_id"],
+                        sort_order=int(item["sort_order"]),
+                        unit=item["unit"],
+                        is_active=bool(item["is_active"]),
+                        requires_volume=bool(item["requires_volume"]),
+                        requires_people=bool(item["requires_people"]),
+                        requires_machines=bool(item["requires_machines"]),
+                    )
+                )
         self._session.commit()
 
     @staticmethod
     def _to_entity(model: WorkTypeModel) -> WorkType:
-        return WorkType(id=model.id, name=model.name)
+        return WorkType(
+            id=model.id,
+            name=model.name,
+            parent_id=model.parent_id,
+            sort_order=model.sort_order,
+            unit=model.unit,
+            is_active=model.is_active,
+            requires_volume=model.requires_volume,
+            requires_people=model.requires_people,
+            requires_machines=model.requires_machines,
+        )
