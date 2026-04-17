@@ -5,7 +5,7 @@ import json
 from datetime import date, datetime
 from typing import List
 
-from fastapi import Form
+from fastapi import Form, HTTPException, status
 from pydantic import BaseModel, Field, constr, model_validator
 
 from app.domain.entities.report import Report
@@ -42,9 +42,9 @@ class ReportCreate(BaseModel):
     @classmethod
     def as_form(
         cls,
-        site_id: str = Form(...),
+        site_id: str | None = Form(default=None),
         work_type_id: str = Form(""),
-        report_date: date = Form(...),
+        report_date: date | None = Form(default=None),
         description: str = Form(""),
         people: str = Form(""),
         volume: str = Form(""),
@@ -53,6 +53,11 @@ class ReportCreate(BaseModel):
     ) -> "ReportCreate":
         if payload:
             return cls.model_validate(json.loads(payload))
+        if not site_id or report_date is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="site_id and report_date are required when payload is missing",
+            )
         return cls(
             site_id=site_id,
             work_type_id=work_type_id,
